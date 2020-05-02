@@ -11,27 +11,31 @@ import org.osmdroid.util.GeoPoint;
 
 import java.util.List;
 
-public class ReverseGeocoderNominatim implements Runnable {
-    private String TAG = ReverseGeocoderNominatim.class.getSimpleName();
+public class ReverseGeoCoderNominatim implements Runnable {
+    private String TAG = ReverseGeoCoderNominatim.class.getSimpleName();
     private Context context;
     private String destination;
-    private GeocoderNominatim geocoder;
+    private GeocoderNominatim geoCoder;
     private List<Address> endPoint;
+    private GeoPoint startPoint;
+    private List<Address> departure;
     private Handler handler;
     private Message msg;
     Bundle bundle = new Bundle();
-    public ReverseGeocoderNominatim(Context context,Handler handler, GeocoderNominatim geocoder, String destination){
+    public ReverseGeoCoderNominatim(Context context, Handler handler, GeocoderNominatim geoCoder,GeoPoint startPoint, String destination){
         this.context = context;
         this.handler = handler;
-        this.geocoder = geocoder;
+        this.geoCoder = geoCoder;
         this.destination = destination;
+        this.startPoint = startPoint;
     }
 
     @Override
     public void run() {
         try {
             msg=handler.obtainMessage();
-            endPoint = geocoder.getFromLocationName(destination,1);
+            departure = geoCoder.getFromLocation(startPoint.getLatitude(),startPoint.getLongitude(),1);
+            endPoint = geoCoder.getFromLocationName(destination,1);
             Log.v(TAG,"Destination : " + endPoint.toString());
             bundle.putString("get-destination","success");
             msg.setData(bundle);
@@ -41,7 +45,10 @@ public class ReverseGeocoderNominatim implements Runnable {
             Log.v(TAG,e.getMessage());
         }
     }
-    public List<Address> getGeocoder(){
+    public Address getDepartureAddress(){
+        return departure.iterator().next();
+    }
+    public List<Address> getDestinationAddress(){
         return endPoint;
     }
     public GeoPoint getDestination(){

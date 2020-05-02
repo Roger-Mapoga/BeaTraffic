@@ -14,5 +14,8 @@
 
     <string name="search">Search</string>
     <string name="feature">Feature</string>
+    <string name="traffic_routes">"See routes with traffic ?"</string>
+    <string name="yes">"Yes"</string>
+    <string name="continue_navigating">"Continue with navigation"</string>
 
 </resources>

@@ -3,7 +3,12 @@
           xmlns:dist="http://schemas.android.com/apk/distribution"
           package="co.za.gmapssolutions.beatraffic">
 
-<!--    <dist:module dist:instant="true"/>-->
+    <dist:module dist:instant="true"/>
+    <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUD_LOCATION"/>
@@ -12,7 +17,6 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-
 
     <application
             android:allowBackup="false"
@@ -28,11 +32,19 @@
                 android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <service android:enabled="true" android:name=".services.location.LocationService"></service>
+        <service android:name=".transition.DetectActivity" android:label="BeaTrafficActivity" android:exported="false"/>
+        <service android:name=".services.location.LocationService" android:label="BeaTrafficLocation"/>
+
+<!--        <receiver android:name=".services.AutoStart"-->
+<!--                  android:permission="com.google.android.gms.permission.ACTIVITY_RECOGNITION">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.BOOT_COMPLETED" />-->
+<!--&lt;!&ndash;                <action android:name="co.za.gmapssolutions.beatraffic.ACTION_PROCESS_ACTIVITY_TRANSITIONS"/>&ndash;&gt;-->
+<!--            </intent-filter>-->
+<!--        </receiver>-->
     </application>
 
 </manifest>

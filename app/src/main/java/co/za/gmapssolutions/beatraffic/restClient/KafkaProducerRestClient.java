@@ -1,22 +1,31 @@
 package co.za.gmapssolutions.beatraffic.restClient;
 
-import co.za.gmapssolutions.beatraffic.domain.Location;
-import org.json.JSONObject;
+import android.location.Address;
+import co.za.gmapssolutions.beatraffic.domain.User;
+import org.json.JSONArray;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
+import static co.za.gmapssolutions.beatraffic.domain.User.userToJson;
+import static co.za.gmapssolutions.beatraffic.domain.BeaTrafficAddress.addressToJson;
 
 
 public class KafkaProducerRestClient implements Runnable{
+    private String log = KafkaProducerRestClient.class.getSimpleName();
     private URL url;
     private HttpURLConnection con;
-    private Location location;
-    private JSONObject jsonObject;
-    public KafkaProducerRestClient(URL url,Location location,JSONObject jsonObject){
+    private User user;
+    private Address departure,destination;
+    private JSONArray jsonArray;
+    public KafkaProducerRestClient(URL url, User user, Address departure, Address destination, JSONArray jsonArray){
         this.url = url;
-        this.location = location;
-        this.jsonObject = jsonObject;
+        this.user = user;
+        this.departure = departure;
+        this.destination = destination;
+        this.jsonArray = jsonArray;
     }
 
     public void run(){
@@ -28,16 +37,14 @@ public class KafkaProducerRestClient implements Runnable{
             con.setRequestProperty("Accept", "application/json");
             con.setDoOutput(true);
 
-               jsonObject.put("id",location.getId());
-               jsonObject.put("type",location.getType());
-               jsonObject.put("streetName",location.getStreetName());
-               jsonObject.put("longitude",location.getLongitude());
-               jsonObject.put("latitude",location.getLatitude());
+            jsonArray.put(userToJson(user));
+            jsonArray.put(addressToJson(departure));
+            jsonArray.put(addressToJson(destination));
 
-               try(OutputStream os = con.getOutputStream()) {
-                byte[] input = jsonObject.toString().getBytes("utf-8");
+            try(OutputStream os = con.getOutputStream()) {
+                byte[] input = jsonArray.toString().getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
-               }
+            }
 
             System.out.println(con.getResponseCode());
         } catch (Exception e) {

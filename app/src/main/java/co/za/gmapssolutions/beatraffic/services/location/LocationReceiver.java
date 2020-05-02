@@ -4,7 +4,6 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
-import android.widget.Toast;
 import co.za.gmapssolutions.beatraffic.R;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.util.GeoPoint;
@@ -29,8 +28,8 @@ public class LocationReceiver extends ResultReceiver {
     @Override
     protected void onReceiveResult(int resultCode, Bundle resultData) {
         if(SUCCESS == resultCode){
-            Toast.makeText(context,resultData.getDouble("currentLatitude") +" : "
-                    + resultData.getDouble("currentLongitude"),Toast.LENGTH_LONG).show();
+//            Toast.makeText(context,resultData.getDouble("currentLatitude") +" : "
+//                    + resultData.getDouble("currentLongitude"),Toast.LENGTH_LONG).show();
             startPoint = new GeoPoint(resultData.getDouble("currentLatitude"),resultData.getDouble("currentLongitude"));
             mapController.setCenter(startPoint);
 

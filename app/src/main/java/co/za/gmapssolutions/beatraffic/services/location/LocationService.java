@@ -57,8 +57,8 @@ public class LocationService extends Service {
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 4000, 0, listener);
 
-            bundle.putDouble("currentLatitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
-            bundle.putDouble("currentLongitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
+            bundle.putDouble("currentLatitude",locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).getLatitude());
+            bundle.putDouble("currentLongitude",locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).getLongitude());
 
             Log.v(TAG,"Last known location : " + locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).toString());
             locationReceiver.send(SUCCESS,bundle);

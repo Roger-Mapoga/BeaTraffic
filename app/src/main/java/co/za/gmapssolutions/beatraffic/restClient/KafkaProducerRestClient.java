@@ -1,6 +1,7 @@
 package co.za.gmapssolutions.beatraffic.restClient;
 
 import android.location.Address;
+import android.util.Log;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import org.json.JSONArray;
 
@@ -9,12 +10,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
+import static co.za.gmapssolutions.beatraffic.domain.BeaTrafficAddress.*;
 import static co.za.gmapssolutions.beatraffic.domain.User.userToJson;
-import static co.za.gmapssolutions.beatraffic.domain.BeaTrafficAddress.addressToJson;
 
 
 public class KafkaProducerRestClient implements Runnable{
-    private String log = KafkaProducerRestClient.class.getSimpleName();
+    private String TAG = KafkaProducerRestClient.class.getSimpleName();
     private URL url;
     private HttpURLConnection con;
     private User user;
@@ -29,7 +30,6 @@ public class KafkaProducerRestClient implements Runnable{
     }
 
     public void run(){
-        // "{id : 1, type : 'car',streetName : 'kutlwano', longitude : 21.0, latitude : 21.0}";
         try {
             con = (HttpURLConnection) url.openConnection();
             con.setRequestMethod("POST");
@@ -38,9 +38,10 @@ public class KafkaProducerRestClient implements Runnable{
             con.setDoOutput(true);
 
             jsonArray.put(userToJson(user));
-            jsonArray.put(addressToJson(departure));
-            jsonArray.put(addressToJson(destination));
-
+            jsonArray.put(departureAddressToJson(user.getId(),departure));
+            jsonArray.put(destinationAddressToJson(user.getId(),destination));
+            Log.i(TAG,jsonArray.toString());
+            //Log.i(TAG,destinationAddressToJson(user.getId(),destination).toString());
             try(OutputStream os = con.getOutputStream()) {
                 byte[] input = jsonArray.toString().getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);

@@ -40,8 +40,10 @@ import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.location.GeocoderNominatim;
 import org.osmdroid.bonuspack.routing.OSRMRoadManager;
+import org.osmdroid.bonuspack.routing.Road;
 import org.osmdroid.bonuspack.routing.RoadManager;
 import org.osmdroid.config.Configuration;
+import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
 import java.io.File;
@@ -193,28 +195,34 @@ public class MainActivity extends AppCompatActivity
             public void handleMessage(Message msg) {
                 Bundle bundle = msg.getData();
                 destination = bundle.getString("get-destination");
+                String destinationError = bundle.getString("get-destination-error");
                 if (destination != null && destination.equals("success")) {
-                    //get traffic
-                    if(activityType != -100){
-                        User user = new User(1,"car");
-                        KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(url, user,
-                                geocoderNominatim.getDepartureAddress(),geocoderNominatim.getDestinationAddress().iterator().next(),new JSONArray());
-                        backGroundThreadPoolExecutor.submit(producerRestClient);
-                    }
-
                     //autoStart = new AutoStart(backGroundThreadPoolExecutor,url,geocoderNominatim.getDepartureAddress(),geocoderNominatim.getDestinationAddress().iterator().next());
                    // Log.v(TAG,geocoderNominatim.getDepartureAddress().toString());
                     //Toast.makeText(getApplicationContext(), geocoderNominatim.getDepartureAddress().getLocality().toString(), Toast.LENGTH_LONG).show();
-//                    roadFetcher = new RoadFetcher(getApplicationContext(), this, map, roadManager,
-//                            locationReceiver.getStartPoint(), geocoderNominatim.getDestination());
-                    //backGroundThreadPoolExecutor.execute(roadFetcher);
+                    roadFetcher = new RoadFetcher(getApplicationContext(), this, map, roadManager,
+                            locationReceiver.getStartPoint(), geocoderNominatim.getDestination());
+                    backGroundThreadPoolExecutor.execute(roadFetcher);
                     destination = "";
                     Log.v(TAG, "Destination fetched");
+                }else if(destinationError != null && destinationError.equals("error")){
+                    Toast.makeText(getApplicationContext(),"destination error",Toast.LENGTH_LONG).show();
                 }
                 roads = bundle.getString("get-roads");
 
                 if (roads != null && roads.equals("done")) {
                     //alertDialog.show();
+                    //get traffic
+                    for(Road route : roadFetcher.getRoutes()) {
+                        //Log.i(TAG,route.mRouteHigh);
+                    }
+                    if(activityType != -100){
+                        User user = new User(1,"car");
+                        KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(url, user,
+                                geocoderNominatim.getDepartureAddress(),geocoderNominatim.getDestinationAddress(),
+                                roadFetcher.getRoutes(),new JSONArray());
+                        backGroundThreadPoolExecutor.submit(producerRestClient);
+                    }
                     progressBar.setVisibility(View.INVISIBLE);
                 }
             }

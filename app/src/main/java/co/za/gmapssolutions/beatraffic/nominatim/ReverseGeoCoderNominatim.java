@@ -36,20 +36,27 @@ public class ReverseGeoCoderNominatim implements Runnable {
             msg=handler.obtainMessage();
             departure = geoCoder.getFromLocation(startPoint.getLatitude(),startPoint.getLongitude(),1);
             endPoint = geoCoder.getFromLocationName(destination,1);
-            Log.v(TAG,"Destination : " + endPoint.toString());
-            bundle.putString("get-destination","success");
-            msg.setData(bundle);
-            handler.sendMessage(msg);
+            if(!endPoint.isEmpty()) {
+                Log.v(TAG, "Destination : " + endPoint);
+                bundle.putString("get-destination", "success");
+                msg.setData(bundle);
+                handler.sendMessage(msg);
+            }else{
+                bundle.putString("get-destination-error","error");
+                msg.setData(bundle);
+                handler.sendMessage(msg);
+                Log.v(TAG,"Destination error");
+            }
             //Toast.makeText(context,endPoint.toString(),Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Log.v(TAG,e.getMessage());
+            Log.v(TAG,"Nominatim exception" + e.getMessage());
         }
     }
     public Address getDepartureAddress(){
         return departure.iterator().next();
     }
-    public List<Address> getDestinationAddress(){
-        return endPoint;
+    public Address getDestinationAddress(){
+        return endPoint.iterator().next();
     }
     public GeoPoint getDestination(){
         return endPoint == null ? null : new GeoPoint(endPoint.iterator().next().getLatitude(),endPoint.iterator().next().getLongitude());

@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
 import co.za.gmapssolutions.beatraffic.R;
 import org.osmdroid.bonuspack.routing.OSRMRoadManager;
@@ -27,7 +26,8 @@ public class RoadFetcher implements Runnable {
     private RoadManager roadManager;
     private  Handler handler;
     private Message msg;
-    Bundle bundle = new Bundle();
+    private Road[] road = new Road[2];
+    private Bundle bundle = new Bundle();
     public RoadFetcher(Context context,Handler handler, MapView map, RoadManager roadManager,GeoPoint startPoint, GeoPoint endPoint){
         this.context = context;
         this.handler = handler;
@@ -38,14 +38,14 @@ public class RoadFetcher implements Runnable {
     }
     @Override
     public void run(){
-        roadManager = new OSRMRoadManager(context);
+        //roadManager = new OSRMRoadManager(context);
         ArrayList<GeoPoint> routePoints = new ArrayList<>();
         routePoints.add(startPoint);
         routePoints.add(endPoint);
 
         msg = handler.obtainMessage();
 
-        Road[]road = roadManager.getRoads(routePoints);
+        road = roadManager.getRoads(routePoints);
 
         Drawable nodeIcon = context.getResources().getDrawable(R.drawable.marker_cluster, context.getResources().newTheme());
         for(int a =0; a < road.length;a++) {
@@ -71,5 +71,8 @@ public class RoadFetcher implements Runnable {
         bundle.putString("get-roads","done");
         msg.setData(bundle);
         handler.sendMessage(msg);
+    }
+    public Road[] getRoutes() {
+        return road;
     }
 }

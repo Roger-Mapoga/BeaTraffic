@@ -36,11 +36,11 @@ public class AutoStart extends BroadcastReceiver {
             Toast.makeText(context,"Activity type: " + type+" , confidence : " + confidence,Toast.LENGTH_LONG).show();
 
             Log.i(TAG,"Action : "+ type +" , confidence : "+confidence);
-            if(DetectedActivity.STILL == type){
-                User user = new User(1,"car");
-                KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(url, user,departure,destination,new JSONArray());
-                threadPoolExecutor.submit(producerRestClient);
-            }
+//            if(DetectedActivity.STILL == type){
+//                User user = new User(1,"car");
+//                KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(url, user,departure,destination,new JSONArray());
+//                threadPoolExecutor.submit(producerRestClient);
+//            }
         }
 //        if (ActivityTransitionResult.hasResult(intent)) {
 //            ActivityTransitionResult result = ActivityTransitionResult.extractResult(intent);

@@ -21,21 +21,19 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
-import java.util.Objects;
 
-
-public class LocationService extends Service {
-    private static final String TAG = LocationService.class.getSimpleName();
+public class BackgroundLocationService extends Service {
+    private static final String TAG = BackgroundLocationService.class.getSimpleName();
     private LocationManager locationManager;
     private BeatTrafficLocation listener;
     private Intent mIntentService;
     private PendingIntent mPendingIntent;
     private ActivityRecognitionClient mActivityRecognitionClient;
-    private IBinder mBinder = new LocationService.LocalBinder();
+    private IBinder mBinder = new BackgroundLocationService.LocalBinder();
     private Task<Void> task;
     public class LocalBinder extends Binder {
-        public LocationService getServerInstance() {
-            return LocationService.this;
+        public BackgroundLocationService getServerInstance() {
+            return BackgroundLocationService.this;
         }
     }
     private int SUCCESS = 1;
@@ -50,32 +48,27 @@ public class LocationService extends Service {
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        super.onStartCommand(intent, flags, startId);
+       // super.onStartCommand(intent, flags, startId);
 
-           try {
-                   ResultReceiver locationReceiver = intent.getParcelableExtra("currentLocation");
-                   Bundle bundle = new Bundle();
-                   locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                   listener = new BeatTrafficLocation();
+        try {
+            Bundle bundle = new Bundle();
+            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+            listener = new BeatTrafficLocation();
 
-                   locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
-                   locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 4000, 0, listener);
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 4000, 0, listener);
 
-                   bundle.putDouble("currentLatitude", locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
-                   bundle.putDouble("currentLongitude", locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
+            bundle.putDouble("currentLatitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
+            bundle.putDouble("currentLongitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
 
-                  // Log.v(TAG, "Last known location : " + locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).toString());
+            Log.v(TAG,"Last known location : " + locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).toString());
 
-                   assert locationReceiver != null;
-                   locationReceiver.send(SUCCESS, bundle);
-
-
-           } catch (SecurityException e) {
-               Log.v(TAG, Objects.requireNonNull(e.getMessage()));
-           }
+        }catch (SecurityException e){
+            Log.v(TAG,e.getMessage());
+        }
         // I don't want this service to stay in memory, so I stop it
         // immediately after doing what I wanted it to do.
-        //stopSelf();
+        stopSelf();
         return START_STICKY;
     }
     @Nullable
@@ -140,7 +133,7 @@ public class LocationService extends Service {
         AlarmManager alarm = (AlarmManager)getSystemService(ALARM_SERVICE);
         alarm.set(alarm.RTC_WAKEUP,
                 System.currentTimeMillis() + (1000 * 60),
-                PendingIntent.getService(this, 0, new Intent(this, LocationService.class), 0)
+                PendingIntent.getService(this, 0, new Intent(this, BackgroundLocationService.class), 0)
         );
     }
 

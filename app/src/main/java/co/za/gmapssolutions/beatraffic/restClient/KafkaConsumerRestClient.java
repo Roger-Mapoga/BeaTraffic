@@ -1,5 +1,9 @@
 package co.za.gmapssolutions.beatraffic.restClient;
 
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -7,24 +11,25 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class KafkaConsumerRestClient implements Runnable {
-    private URL url;
-    private HttpURLConnection con;
-    public KafkaConsumerRestClient(URL url){
-        this.url = url;
+    private final RestClient restClient;
+    private final  Handler handler;
+    private final Bundle bundle = new Bundle();
+
+    public KafkaConsumerRestClient(RestClient restClient, Handler handler){
+        this.restClient = restClient;
+        this.handler = handler;
     }
     @Override
     public void run(){
         try {
-            con = (HttpURLConnection) url.openConnection();
-            try(BufferedReader br = new BufferedReader(
-                    new InputStreamReader(con.getInputStream(), "utf-8"))) {
-                StringBuilder response = new StringBuilder();
-                String responseLine = null;
-                while ((responseLine = br.readLine()) != null) {
-                    response.append(responseLine.trim());
-                }
-                System.out.println(response.toString());
+            int response = restClient.get();
+            Message msg = handler.obtainMessage();
+            if(response == HttpURLConnection.HTTP_OK){
+                bundle.putString("traffic-forecast",restClient.getData());
             }
+            bundle.putInt("traffic-response", response);
+            msg.setData(bundle);
+            handler.sendMessage(msg);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -18,16 +18,15 @@ import org.osmdroid.views.overlay.Polyline;
 import java.util.ArrayList;
 
 public class RoadFetcher implements Runnable {
-    private static String TAG = RoadFetcher.class.getSimpleName();
-    private Context context;
-    private GeoPoint startPoint;
-    private GeoPoint endPoint;
-    private MapView map;
-    private RoadManager roadManager;
-    private  Handler handler;
-    private Message msg;
+    private static final String TAG = RoadFetcher.class.getSimpleName();
+    private final Context context;
+    private final GeoPoint startPoint;
+    private final GeoPoint endPoint;
+    private final MapView map;
+    private final RoadManager roadManager;
+    private final Handler handler;
     private Road[] road = new Road[2];
-    private Bundle bundle = new Bundle();
+    private final Bundle bundle = new Bundle();
     public RoadFetcher(Context context,Handler handler, MapView map, RoadManager roadManager,GeoPoint startPoint, GeoPoint endPoint){
         this.context = context;
         this.handler = handler;
@@ -43,17 +42,17 @@ public class RoadFetcher implements Runnable {
         routePoints.add(startPoint);
         routePoints.add(endPoint);
 
-        msg = handler.obtainMessage();
+        Message msg = handler.obtainMessage();
 
         road = roadManager.getRoads(routePoints);
 
         Drawable nodeIcon = context.getResources().getDrawable(R.drawable.marker_cluster, context.getResources().newTheme());
-        for(int a =0; a < road.length;a++) {
-            Polyline roadOverlay = RoadManager.buildRoadOverlay(road[a]);
+        for (Road value : road) {
+            Polyline roadOverlay = RoadManager.buildRoadOverlay(value);
 
             map.getOverlays().add(roadOverlay);
-            for (int i = 0; i < road[a].mNodes.size(); i++) {
-                RoadNode node = road[a].mNodes.get(i);
+            for (int i = 0; i < value.mNodes.size(); i++) {
+                RoadNode node = value.mNodes.get(i);
                 Marker nodeMarker = new Marker(map);
                 nodeMarker.setPosition(node.mLocation);
                 nodeMarker.setIcon(nodeIcon);
@@ -67,7 +66,7 @@ public class RoadFetcher implements Runnable {
 //          node.mManeuverType
             }
         }
-        map.invalidate();
+//        map.invalidate();
         bundle.putString("get-roads","done");
         msg.setData(bundle);
         handler.sendMessage(msg);

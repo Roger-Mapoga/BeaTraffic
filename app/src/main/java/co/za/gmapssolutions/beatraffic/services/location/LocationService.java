@@ -38,7 +38,6 @@ public class LocationService extends Service {
             return LocationService.this;
         }
     }
-    private int SUCCESS = 1;
 
     @Override
     public void onCreate() {
@@ -64,10 +63,11 @@ public class LocationService extends Service {
                    bundle.putDouble("currentLatitude", locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
                    bundle.putDouble("currentLongitude", locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
 
-                  // Log.v(TAG, "Last known location : " + locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).toString());
+                   Log.v(TAG, "Last known location : " + locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).toString());
 
                    assert locationReceiver != null;
-                   locationReceiver.send(SUCCESS, bundle);
+               int SUCCESS = 1;
+               locationReceiver.send(SUCCESS, bundle);
 
 
            } catch (SecurityException e) {

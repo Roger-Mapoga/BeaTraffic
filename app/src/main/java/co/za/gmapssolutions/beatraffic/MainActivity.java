@@ -4,11 +4,15 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.*;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
@@ -17,7 +21,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import co.za.gmapssolutions.beatraffic.Roads.RoadFetcher;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.executor.DefaultExecutorSupplier;
 import co.za.gmapssolutions.beatraffic.map.MapTileFetcher;
@@ -35,8 +38,10 @@ import com.google.android.material.snackbar.Snackbar;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.location.GeocoderNominatim;
 import org.osmdroid.bonuspack.routing.OSRMRoadManager;
-import org.osmdroid.bonuspack.routing.RoadManager;
 import org.osmdroid.config.Configuration;
+import org.osmdroid.tileprovider.MapTileProviderBasic;
+import org.osmdroid.tileprovider.tilesource.ITileSource;
+import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.views.MapView;
 
 import javax.net.ssl.*;
@@ -47,7 +52,6 @@ import java.net.URL;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -77,6 +81,7 @@ public class MainActivity extends AppCompatActivity
     private RestClient restClient = null;
     //traffic forecast
     private String trafficForecast;
+    private String HOST = "http://192.168.8.105";
     //permissions
     private void requestPermission(String[] permissions){
         //check permissions
@@ -113,10 +118,14 @@ public class MainActivity extends AppCompatActivity
         ThreadPoolExecutor backGroundThreadPoolExecutor = defaultExecutorSupplier.forBackgroundTasks();
 //        Executor runOnUiThread = defaultExecutorSupplier.forMainThreadTasks();
         //map
-        //Map
         MapView map = findViewById(R.id.map);
-        //map.setMapOrientation(90f);
-
+        TextView routeDetails =  findViewById(R.id.routeDetails);
+        final ITileSource tileSource = new XYTileSource(
+                "Mapnik", 1, 20, 256,
+                ".png", new String[]{HOST+":7071/tile/"});
+        MapTileProviderBasic tileProvider = new MapTileProviderBasic(this,tileSource);
+        map.setTileProvider(tileProvider);
+//
         IMapController mapController = map.getController();
         MapTileFetcher mapTile = new MapTileFetcher(this, map, mapController);
         backGroundThreadPoolExecutor.execute(mapTile);
@@ -133,14 +142,20 @@ public class MainActivity extends AppCompatActivity
 
         //reverse geocoder nominatim
         GeocoderNominatim geocoder = new GeocoderNominatim(getPackageName());
+        geocoder.setService(HOST+":7070/");
 
         //roads
         //Road
-        RoadManager roadManager = new OSRMRoadManager(this);
+        //TODO switch back to OSRM
+        OSRMRoadManager osrmRoadManager =  new OSRMRoadManager(this);
+        osrmRoadManager.setService(HOST+":5000/route/v1/driving/");
+
+//        RoadManager roadManager = new RoadManager(HOST+":8080/routes",HOST+":8080/postRoutes");
         //rest api
         try {
-            URL url = new URL("http://192.168.8.102:8080/location");
-            restClient = new RestClient(url);
+            URL url = new URL(HOST+":8080/location");
+            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+            restClient = new RestClient(con);
         } catch (IOException e) {
             e.printStackTrace();
 //            System.exit(1);
@@ -151,7 +166,7 @@ public class MainActivity extends AppCompatActivity
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                Snackbar.make(view, "Replace with your own action" , Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
         });
@@ -172,8 +187,8 @@ public class MainActivity extends AppCompatActivity
         AlertDialog alertDialog = popup.create();
 
         //Looper.getMainLooper()
-        handler = new mHandler(this, map, roadManager, locationReceiver, geocoder,
-                user,restClient,progressBar, backGroundThreadPoolExecutor);
+        handler = new mHandler(this, map, osrmRoadManager, locationReceiver, geocoder,
+                user,restClient,progressBar, routeDetails,backGroundThreadPoolExecutor);
     }
 
     @Override

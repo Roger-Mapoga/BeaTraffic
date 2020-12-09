@@ -1,29 +1,24 @@
 package co.za.gmapssolutions.beatraffic.restClient;
 
-import android.util.Log;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public class RestClient {
     private final String TAG = RestClient.class.getSimpleName();
-    private final URL url;
+    private final HttpURLConnection con;
     private final StringBuilder response = new StringBuilder();
 
-    public RestClient(URL url){
-        this.url = url;
+    public RestClient(HttpURLConnection con){
+        this.con = con;
+        this.con.setRequestProperty("Content-Type", "application/json; utf-8");
+        this.con.setRequestProperty("Accept", "application/json");
     }
     public int post(String data) throws IOException {
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
-        con.setRequestProperty("Content-Type", "application/json; utf-8");
-        con.setRequestProperty("Accept", "application/json");
         con.setDoOutput(true);
         try(OutputStream os = con.getOutputStream()) {
             byte[] input = data.getBytes(StandardCharsets.UTF_8);
@@ -33,7 +28,6 @@ public class RestClient {
         return con.getResponseCode();
     }
     public int get() throws IOException {
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         if(con.getResponseCode() == HttpURLConnection.HTTP_OK) {
             BufferedReader in = new BufferedReader(new InputStreamReader(

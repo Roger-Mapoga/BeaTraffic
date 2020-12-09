@@ -4,21 +4,18 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
-import android.widget.Toast;
 import co.za.gmapssolutions.beatraffic.R;
+import co.za.gmapssolutions.beatraffic.map.OnMarkerDragListenerDrawer;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
-import org.osmdroid.views.overlay.Polyline;
-
-import java.util.ArrayList;
 
 public class LocationReceiver extends ResultReceiver {
     private int SUCCESS = 1;
-    private Context context;
-    private IMapController mapController;
-    private MapView map;
+    private final Context context;
+    private final IMapController mapController;
+    private final MapView map;
     private GeoPoint startPoint;
     public LocationReceiver(Handler handler, Context context, MapView map, IMapController mapController){
         super(handler);
@@ -41,7 +38,7 @@ public class LocationReceiver extends ResultReceiver {
             startMarker.setTitle("Start point");
 
             startMarker.setDraggable(true);
-            startMarker.setOnMarkerDragListener(new OnMarkerDragListenerDrawer());
+            startMarker.setOnMarkerDragListener(new OnMarkerDragListenerDrawer(map));
             map.getOverlays().add(startMarker);
             map.invalidate();
 
@@ -50,35 +47,6 @@ public class LocationReceiver extends ResultReceiver {
     }
     public GeoPoint getStartPoint(){
         return startPoint;
-    }
-
-    private class OnMarkerDragListenerDrawer implements Marker.OnMarkerDragListener {
-
-        ArrayList<GeoPoint> mTrace;
-        Polyline mPolyline;
-
-        OnMarkerDragListenerDrawer() {
-            mTrace = new ArrayList<GeoPoint>(100);
-            mPolyline = new Polyline();
-            mPolyline.setColor(0xAA0000FF);
-            mPolyline.setWidth(2.0f);
-            mPolyline.setGeodesic(true);
-            map.getOverlays().add(mPolyline);
-        }
-
-        @Override public void onMarkerDrag(Marker marker) {
-            //mTrace.add(marker.getPosition());
-        }
-
-        @Override public void onMarkerDragEnd(Marker marker) {
-            mTrace.add(marker.getPosition());
-            mPolyline.setPoints(mTrace);
-            map.invalidate();
-        }
-
-        @Override public void onMarkerDragStart(Marker marker) {
-            //mTrace.add(marker.getPosition());
-        }
     }
 }
 

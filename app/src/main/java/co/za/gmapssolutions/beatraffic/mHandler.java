@@ -5,10 +5,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
-import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
-import co.za.gmapssolutions.beatraffic.Roads.DisplayForecast;
 import co.za.gmapssolutions.beatraffic.Roads.RoadFetcher;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.nominatim.ReverseGeoCoderNominatim;
@@ -18,6 +17,7 @@ import co.za.gmapssolutions.beatraffic.restClient.RestClient;
 import co.za.gmapssolutions.beatraffic.services.location.LocationReceiver;
 import org.json.JSONArray;
 import org.osmdroid.bonuspack.location.GeocoderNominatim;
+import org.osmdroid.bonuspack.routing.Road;
 import org.osmdroid.bonuspack.routing.RoadManager;
 import org.osmdroid.views.MapView;
 
@@ -39,10 +39,10 @@ public class mHandler extends Handler {
     private final ThreadPoolExecutor backGroundThreadPoolExecutor;
     private final RestClient restClient;
     private final ProgressBar progressBar;
-
-    public mHandler(Context context,MapView map,RoadManager roadManager,LocationReceiver locationReceiver,
-                    GeocoderNominatim geocoder,User user,RestClient restClient,
-                    ProgressBar progressBar,ThreadPoolExecutor backGroundThreadPoolExecutor){
+    private final TextView routeDetails;
+    public mHandler(Context context, MapView map, RoadManager roadManager, LocationReceiver locationReceiver,
+                    GeocoderNominatim geocoder, User user, RestClient restClient,
+                    ProgressBar progressBar, TextView routeDetails, ThreadPoolExecutor backGroundThreadPoolExecutor){
         this.context = context;
         this.map = map;
         this.roadManager = roadManager;
@@ -53,6 +53,7 @@ public class mHandler extends Handler {
         this.restClient = restClient;
         this.progressBar = progressBar;
         this.backGroundThreadPoolExecutor = backGroundThreadPoolExecutor;
+        this.routeDetails = routeDetails;
     }
     @Override
     public void handleMessage(Message msg) {
@@ -77,8 +78,10 @@ public class mHandler extends Handler {
         }
         String roads = bundle.getString("get-roads");
         if (roads != null && roads.equals("done")) {
+            Log.d(TAG, "Path displayed");
             //alertDialog.show();
             //if(activityType == DetectedActivity.IN_VEHICLE){
+            Road[] routes = roadFetcher.getRoutes();
             KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(restClient, this,user,
                     geocoderNominatim.getDepartureAddress(),geocoderNominatim.getDestinationAddress(),
                     roadFetcher.getRoutes(),new JSONArray());
@@ -88,20 +91,21 @@ public class mHandler extends Handler {
         int httpsPostResponse = bundle.getInt("http-post-status");
         if(httpsPostResponse == HttpURLConnection.HTTP_CREATED){
             //traffic-forecast
-            Log.d(TAG, String.valueOf(httpsPostResponse));
+            Log.d(TAG, "Getting traffic forecast: " + String.valueOf(httpsPostResponse));
             KafkaConsumerRestClient kafkaConsumerRestClient = new KafkaConsumerRestClient(restClient,this);
             backGroundThreadPoolExecutor.submit(kafkaConsumerRestClient);
         }else if (httpsPostResponse == HttpURLConnection.HTTP_NOT_ACCEPTABLE){
-            Log.d(TAG, String.valueOf(httpsPostResponse));
+            Log.d(TAG,"Consumer Error: " + String.valueOf(httpsPostResponse));
         }
-        int trafficResponse = bundle.getInt("traffic-response");
-        if(trafficResponse == HttpURLConnection.HTTP_OK){
-            Log.d(TAG, String.valueOf(trafficResponse));
-
-            String trafficForecast = bundle.getString("traffic-forecast");
-            DisplayForecast displayForecast = new DisplayForecast(context,trafficForecast);
-            backGroundThreadPoolExecutor.submit(displayForecast);
-            progressBar.setVisibility(View.INVISIBLE);
-        }
+//        int trafficResponse = bundle.getInt("traffic-response");
+//        if(trafficResponse == HttpURLConnection.HTTP_OK){
+//            String trafficForecast = bundle.getString("traffic-forecast");
+//            DisplayForecast displayForecast = new DisplayForecast(context,map,trafficForecast);
+//            backGroundThreadPoolExecutor.submit(displayForecast);
+//            progressBar.setVisibility(View.INVISIBLE);
+//        }else if (trafficResponse == HttpURLConnection.HTTP_NO_CONTENT){
+//            Log.d(TAG, "No content: "+String.valueOf(trafficResponse));
+//
+//        }
     }
 }

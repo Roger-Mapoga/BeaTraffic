@@ -22,7 +22,7 @@ public class DetectActivity extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
         ActivityRecognitionResult result = ActivityRecognitionResult.extractResult(intent);
-        ArrayList<DetectedActivity> detectedActivities = (ArrayList) result.getProbableActivities();
+        ArrayList<DetectedActivity> detectedActivities = (ArrayList<DetectedActivity>) result.getProbableActivities();
         for (DetectedActivity activity : detectedActivities) {
             broadcastActivity(activity);
         }

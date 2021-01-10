@@ -18,4 +18,5 @@
     <string name="yes">"Yes"</string>
     <string name="continue_navigating">"Continue with navigation"</string>
 
+    <string name="route_details">"%1$.2f min (%2$.2f km)"</string>
 </resources>

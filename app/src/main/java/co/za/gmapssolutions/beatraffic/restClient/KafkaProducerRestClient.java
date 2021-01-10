@@ -38,12 +38,13 @@ public class KafkaProducerRestClient implements Runnable{
 
     public void run(){
         try {
+            Log.i(TAG,"Starting ");
             jsonArray.put(userToJson(user));
             jsonArray.put(departureAddressToJson(user.getId(),departure));
             jsonArray.put(destinationAddressToJson(user.getId(),destination));
             jsonArray.put(routesToJson(user.getId(),routes));
-//            Log.i(TAG,jsonArray.toString());
             int response = restClient.post(jsonArray.toString());
+            Log.i(TAG,jsonArray.toString());
             Message msg = handler.obtainMessage();
             bundle.putInt("http-post-status",response);
             msg.setData(bundle);

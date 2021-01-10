@@ -5,16 +5,12 @@ import android.content.Context;
 import android.widget.TextView;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.routing.RoadNode;
-import org.osmdroid.tileprovider.MapTileProviderBasic;
-import org.osmdroid.tileprovider.tilesource.ITileSource;
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
-import org.osmdroid.tileprovider.tilesource.XYTileSource;
 import org.osmdroid.views.CustomZoomButtonsController;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 
 
-public class MapTileFetcher implements Runnable {
+public class MapTileFetcher implements Runnable{
     private static final String TAG = MapTileFetcher.class.getSimpleName();
     private Context context;
     private TextView textView;

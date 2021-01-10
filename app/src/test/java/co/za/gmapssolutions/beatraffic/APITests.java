@@ -21,7 +21,7 @@ public class APITests {
             //http://192.168.8.102:8080/location
             URL url = new URL("http://192.168.8.105:8080/location");
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            RestClient restClient = new RestClient(con);
+            RestClient restClient = new RestClient(url);
             int response = restClient.get();
             if( response == HttpURLConnection.HTTP_OK){
                 try {
@@ -45,7 +45,7 @@ public class APITests {
         try {
             URL url = new URL(urlString);
             HttpURLConnection con = (HttpURLConnection) url.openConnection();
-            RestClient restClient = new RestClient(con);
+            RestClient restClient = new RestClient(url);
             int response = restClient.get();
             if( response == HttpURLConnection.HTTP_OK){
                 JSONObject jsonObject = new JSONObject(restClient.getData());

@@ -1,18 +1,18 @@
 package co.za.gmapssolutions.beatraffic.Roads;
 
 import android.content.Context;
-import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import co.za.gmapssolutions.beatraffic.R;
+import co.za.gmapssolutions.beatraffic.services.MyLocation;
+import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.routing.Road;
 import org.osmdroid.bonuspack.routing.RoadManager;
-import org.osmdroid.bonuspack.routing.RoadNode;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
-import org.osmdroid.views.overlay.Polyline;
 
 import java.util.ArrayList;
 
@@ -24,16 +24,22 @@ public class RoadFetcher implements Runnable {
     private final MapView map;
     private final RoadManager roadManager;
     private final Handler handler;
-    private Road[] road = new Road[2];
+    private Road[] road = new Road[10];
     private final Bundle bundle = new Bundle();
-    public RoadFetcher(Context context, Handler handler, MapView map, RoadManager roadManager, GeoPoint startPoint,
-                       GeoPoint endPoint){
+    private final DisplayRoutes displayRoutes;
+    private final MyLocation myLocation;
+    private final IMapController mapController;
+    public RoadFetcher(Context context, Handler handler, MapView map, IMapController mapController, RoadManager roadManager, GeoPoint startPoint,
+                       GeoPoint endPoint, MyLocation myLocation, DisplayRoutes displayRoutes){
         this.context = context;
         this.handler = handler;
         this.startPoint = startPoint;
         this.endPoint = endPoint;
         this.map = map;
+        this.mapController = mapController;
         this.roadManager = roadManager;
+        this.displayRoutes = displayRoutes;
+        this.myLocation = myLocation;
     }
     @Override
     public void run(){
@@ -42,40 +48,26 @@ public class RoadFetcher implements Runnable {
         routePoints.add(startPoint);
         routePoints.add(endPoint);
         map.getOverlays().clear();
-        setMarker(startPoint,"Start point");
+        Location mLocation = new Location("");
+        mLocation.setLatitude(startPoint.getLatitude());
+        mLocation.setLongitude(startPoint.getLongitude());
+        myLocation.setMyLocation(mLocation);
+
+        //setMarker(startPoint,"Start point");
         setMarker(endPoint,"End point");
 
         Message msg = handler.obtainMessage();
         roadManager.addRequestOption("alternatives=10");
-        Road[]road = roadManager.getRoads(routePoints);
-//        Drawable nodeIcon = context.getResources().getDrawable(R.drawable., context.getResources().newTheme());
-        int d = 0;
-        double [] distance = new double[road.length];
-        for (Road value : road) {
-            Polyline roadOverlay = RoadManager.buildRoadOverlay(value);
-            map.getOverlays().add(roadOverlay);
+        road = roadManager.getRoads(routePoints);
 
-            for (int i = 0; i < value.mNodes.size(); i++) {
-                RoadNode node = value.mNodes.get(i);
-                Marker nodeMarker = new Marker(map);
-                nodeMarker.setPosition(node.mLocation);
-//                nodeMarker.setIcon(null);
-                nodeMarker.setVisible(false);
-                nodeMarker.setTitle("Step " + i);
-                map.getOverlays().add(nodeMarker);
-                nodeMarker.setSnippet(node.mInstructions);
-                nodeMarker.setSubDescription(Road.getLengthDurationText(context, node.mLength, node.mDuration));
-                Drawable icon = context.getResources().getDrawable(R.drawable.osm_ic_center_map, context.getResources().newTheme());
-                nodeMarker.setImage(icon);
-                if(node.mLength > 0) {
-                    distance[d] += node.mLength;
-                    //Log.d(TAG,"Distance: "+node.mLength + " Size: "+ distance.length);
-                }
-//          node.mManeuverType
-            }
-            d++;
-        }
-        map.invalidate();
+//        Drawable nodeIcon = context.getResources().getDrawable(R.drawable., context.getResources().newTheme());
+//        int d = 0;
+//        double [] distance = new double[road.length];
+        displayRoutes.show(road);
+//        mapController.setZoom(9.3f);
+//        map.invalidate();
+        map.postInvalidate();
+        map.getOverlays().add(myLocation);
         bundle.putString("get-roads","done");
         msg.setData(bundle);
         handler.sendMessage(msg);
@@ -88,6 +80,7 @@ public class RoadFetcher implements Runnable {
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
         startMarker.setIcon(context.getResources().getDrawable(R.drawable.marker_default,context.getResources().newTheme()));
         startMarker.setTitle(message);
+        if(point != null)
         startMarker.setPosition(point);
         map.getOverlays().add(startMarker);
     }

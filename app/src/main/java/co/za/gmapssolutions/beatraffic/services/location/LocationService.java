@@ -21,7 +21,9 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 
 public class LocationService extends Service {
@@ -29,10 +31,14 @@ public class LocationService extends Service {
     private LocationManager locationManager;
     private BeatTrafficLocation listener;
     private Intent mIntentService;
+    private final Set<String> locationSources = new HashSet<>();
     private PendingIntent mPendingIntent;
     private ActivityRecognitionClient mActivityRecognitionClient;
-    private IBinder mBinder = new LocationService.LocalBinder();
+    private final IBinder mBinder = new LocationService.LocalBinder();
     private Task<Void> task;
+    private int SUCCESS;
+    private long mLastGps = 0;
+    private long gpsWaitTime =20000;
     public class LocalBinder extends Binder {
         public LocationService getServerInstance() {
             return LocationService.this;
@@ -46,30 +52,34 @@ public class LocationService extends Service {
         mIntentService = new Intent(this, DetectActivity.class);
         mPendingIntent = PendingIntent.getService(this, 1, mIntentService, PendingIntent.FLAG_UPDATE_CURRENT);
         requestActivityUpdatesHandler();
+        locationSources.add(LocationManager.GPS_PROVIDER);
+        locationSources.add(LocationManager.NETWORK_PROVIDER);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        listener = new BeatTrafficLocation();
+        SUCCESS = 1;
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-
            try {
                    ResultReceiver locationReceiver = intent.getParcelableExtra("currentLocation");
                    Bundle bundle = new Bundle();
-                   locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-                   listener = new BeatTrafficLocation();
-
-                   locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
-                   locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 4000, 0, listener);
-
-                   bundle.putDouble("currentLatitude", locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
-                   bundle.putDouble("currentLongitude", locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
-
-                   Log.v(TAG, "Last known location : " + locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).toString());
-
-                   assert locationReceiver != null;
-               int SUCCESS = 1;
-               locationReceiver.send(SUCCESS, bundle);
-
-
+//                   locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
+//                    locationManager.getAllProviders();
+//                    locationManager.getProviders(true);
+               for(String provider : locationManager.getProviders(true)){
+                   if(locationSources.contains(provider)){
+                       if (!shouldIgnore(provider, System.currentTimeMillis())) {
+                           locationManager.requestLocationUpdates(provider, 4000, 0, listener);
+                           bundle.putDouble("currentLatitude", locationManager.getLastKnownLocation(provider).getLatitude());
+                           bundle.putDouble("currentLongitude", locationManager.getLastKnownLocation(provider).getLongitude());
+                           bundle.putParcelable("loc",locationManager.getLastKnownLocation(provider));
+                           Log.v(TAG, "Last known location : (" + provider + ") " + locationManager.getLastKnownLocation(provider).toString());
+                           assert locationReceiver != null;
+                           locationReceiver.send(SUCCESS, bundle);
+                       }
+                   }
+               }
            } catch (SecurityException e) {
                Log.v(TAG, Objects.requireNonNull(e.getMessage()));
            }
@@ -83,7 +93,18 @@ public class LocationService extends Service {
     public IBinder onBind(Intent intent) {
         return mBinder;
     }
+    protected boolean shouldIgnore(final String pProvider, final long pTime) {
 
+        if (LocationManager.GPS_PROVIDER.equals(pProvider)) {
+            mLastGps = pTime;
+        } else {
+            if (pTime < mLastGps + gpsWaitTime) {
+                return true;
+            }
+        }
+
+        return false;
+    }
     public void requestActivityUpdatesHandler() {
         task = mActivityRecognitionClient.requestActivityUpdates(
                 Constants.DETECTION_INTERVAL_IN_MILLISECONDS,
@@ -123,13 +144,8 @@ public class LocationService extends Service {
             }
         });
 
-        task.addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Toast.makeText(getApplicationContext(), "Failed to remove activity updates!",
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+        task.addOnFailureListener(e -> Toast.makeText(getApplicationContext(), "Failed to remove activity updates!",
+                Toast.LENGTH_SHORT).show());
     }
     @Override
     public void onDestroy() {

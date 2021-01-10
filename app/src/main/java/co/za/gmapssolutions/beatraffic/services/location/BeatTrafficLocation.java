@@ -7,7 +7,7 @@ import android.os.Bundle;
 public class BeatTrafficLocation implements LocationListener{
 
     private  final String TAG = BeatTrafficLocation.class.getSimpleName();
-    private Location location;
+    private Location location ;
 
     @Override
     public void onLocationChanged(Location location){

@@ -20,8 +20,7 @@
                 android:indeterminateTint="#1a09d6"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintBottom_toTopOf="parent"/>
-
+                app:layout_constraintBottom_toTopOf="@+id/map"/>
 
     <org.osmdroid.views.MapView android:id="@+id/map"
                                 android:layout_width="match_parent"
@@ -30,8 +29,5 @@
                                 app:layout_constraintStart_toStartOf="parent"
                                 app:layout_constraintBottom_toBottomOf="parent"
     />
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:id="@+id/routeDetails"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

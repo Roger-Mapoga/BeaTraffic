@@ -5,23 +5,33 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import co.za.gmapssolutions.beatraffic.Roads.DisplayForecast;
+import co.za.gmapssolutions.beatraffic.Roads.DisplayRoutes;
 import co.za.gmapssolutions.beatraffic.Roads.RoadFetcher;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.nominatim.ReverseGeoCoderNominatim;
 import co.za.gmapssolutions.beatraffic.restClient.KafkaConsumerRestClient;
 import co.za.gmapssolutions.beatraffic.restClient.KafkaProducerRestClient;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
+import co.za.gmapssolutions.beatraffic.services.MyLocation;
 import co.za.gmapssolutions.beatraffic.services.location.LocationReceiver;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import org.json.JSONArray;
+import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.location.GeocoderNominatim;
-import org.osmdroid.bonuspack.routing.Road;
 import org.osmdroid.bonuspack.routing.RoadManager;
+import org.osmdroid.util.BoundingBox;
+import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 
 public class mHandler extends Handler {
@@ -37,23 +47,36 @@ public class mHandler extends Handler {
     private final GeocoderNominatim geocoder;
     private final User user;
     private final ThreadPoolExecutor backGroundThreadPoolExecutor;
-    private final RestClient restClient;
+    private final RestClient trafficRestClient,requestRestClient;
     private final ProgressBar progressBar;
-    private final TextView routeDetails;
-    public mHandler(Context context, MapView map, RoadManager roadManager, LocationReceiver locationReceiver,
-                    GeocoderNominatim geocoder, User user, RestClient restClient,
-                    ProgressBar progressBar, TextView routeDetails, ThreadPoolExecutor backGroundThreadPoolExecutor){
+    private final DisplayRoutes displayRoutes;
+    private final BeaTrafficViewModel viewModel;
+    private final BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior;
+    private final MyLocation myLocation;
+    private final IMapController mapController;
+    private final TextView tvTravelDetails;
+    public mHandler(Context context, MapView map, IMapController mapController, RoadManager roadManager, LocationReceiver locationReceiver,
+                    GeocoderNominatim geocoder, User user, RestClient requestRestClient, RestClient trafficRestClient,
+                    ProgressBar progressBar, ThreadPoolExecutor backGroundThreadPoolExecutor,
+                    DisplayRoutes displayRoutes, MyLocation myLocation, BeaTrafficViewModel viewModel,
+                    BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior, TextView tvTravelDetails){
         this.context = context;
         this.map = map;
+        this.mapController = mapController;
         this.roadManager = roadManager;
         this.locationReceiver = locationReceiver;
 //        this.geocoderNominatim = geocoderNominatim;
         this.geocoder = geocoder;
         this.user = user;
-        this.restClient = restClient;
+        this.requestRestClient = requestRestClient;
+        this.trafficRestClient = trafficRestClient;
         this.progressBar = progressBar;
         this.backGroundThreadPoolExecutor = backGroundThreadPoolExecutor;
-        this.routeDetails = routeDetails;
+        this.displayRoutes = displayRoutes;
+        this.myLocation = myLocation;
+        this.viewModel = viewModel;
+        this.bottomSheetBehavior = bottomSheetBehavior;
+        this.tvTravelDetails = tvTravelDetails;
     }
     @Override
     public void handleMessage(Message msg) {
@@ -68,44 +91,61 @@ public class mHandler extends Handler {
         String destinationError = bundle.getString("get-destination-error");
 
         if (destination != null && destination.equals("success")) {
-            roadFetcher = new RoadFetcher(context, this, map, roadManager,
-                    locationReceiver.getStartPoint(), geocoderNominatim.getDestination());
+            roadFetcher = new RoadFetcher(context, this, map,mapController,roadManager,
+                    locationReceiver.getStartPoint(), geocoderNominatim.getDestination(),myLocation,displayRoutes);
             backGroundThreadPoolExecutor.execute(roadFetcher);
-            destination = "";
             Log.v(TAG, "Destination fetched");
         }else if(destinationError != null && destinationError.equals("error")){
             Toast.makeText(context,"destination error",Toast.LENGTH_LONG).show();
         }
         String roads = bundle.getString("get-roads");
+        boolean showBottomSheet = false;
         if (roads != null && roads.equals("done")) {
-            Log.d(TAG, "Path displayed");
-            //alertDialog.show();
-            //if(activityType == DetectedActivity.IN_VEHICLE){
-            Road[] routes = roadFetcher.getRoutes();
-            KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(restClient, this,user,
+            KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(requestRestClient, this,user,
                     geocoderNominatim.getDepartureAddress(),geocoderNominatim.getDestinationAddress(),
-                    roadFetcher.getRoutes(),new JSONArray());
+                    viewModel.getRoutes().getValue(),new JSONArray());
+            viewModel.getRoutes().postValue(roadFetcher.getRoutes());
             backGroundThreadPoolExecutor.submit(producerRestClient);
-            //}
+            showBottomSheet = true;
         }
         int httpsPostResponse = bundle.getInt("http-post-status");
         if(httpsPostResponse == HttpURLConnection.HTTP_CREATED){
             //traffic-forecast
-            Log.d(TAG, "Getting traffic forecast: " + String.valueOf(httpsPostResponse));
-            KafkaConsumerRestClient kafkaConsumerRestClient = new KafkaConsumerRestClient(restClient,this);
+            Log.d(TAG, "Getting traffic forecast: " + httpsPostResponse);
+            KafkaConsumerRestClient kafkaConsumerRestClient = new KafkaConsumerRestClient(trafficRestClient,this);
             backGroundThreadPoolExecutor.submit(kafkaConsumerRestClient);
         }else if (httpsPostResponse == HttpURLConnection.HTTP_NOT_ACCEPTABLE){
-            Log.d(TAG,"Consumer Error: " + String.valueOf(httpsPostResponse));
+            Log.d(TAG,"Consumer Error: " + httpsPostResponse);
         }
-//        int trafficResponse = bundle.getInt("traffic-response");
-//        if(trafficResponse == HttpURLConnection.HTTP_OK){
-//            String trafficForecast = bundle.getString("traffic-forecast");
-//            DisplayForecast displayForecast = new DisplayForecast(context,map,trafficForecast);
-//            backGroundThreadPoolExecutor.submit(displayForecast);
-//            progressBar.setVisibility(View.INVISIBLE);
-//        }else if (trafficResponse == HttpURLConnection.HTTP_NO_CONTENT){
-//            Log.d(TAG, "No content: "+String.valueOf(trafficResponse));
-//
-//        }
+        int trafficResponse = bundle.getInt("traffic-response");
+        if(trafficResponse == HttpURLConnection.HTTP_OK){
+            String trafficForecast = bundle.getString("traffic-forecast");
+            DisplayForecast displayForecast = new DisplayForecast(context,map,trafficForecast);
+            backGroundThreadPoolExecutor.submit(displayForecast);
+            progressBar.setVisibility(View.INVISIBLE);
+        }else if (trafficResponse == HttpURLConnection.HTTP_NO_CONTENT){
+            Log.d(TAG, "No content: "+ trafficResponse);
+            progressBar.setVisibility(View.INVISIBLE);
+            Toast.makeText(context,"No traffic in routes",Toast.LENGTH_LONG).show();
+        }
+        //bottom sheet
+        if(showBottomSheet){
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+            List<GeoPoint> geoPointList = new ArrayList<>();
+            geoPointList.add(locationReceiver.getStartPoint());
+            geoPointList.add(geocoderNominatim.getDestination());
+            BoundingBox boundingBox = BoundingBox.fromGeoPoints(geoPointList);
+            map.zoomToBoundingBox(boundingBox,true,180);
+//            map.animate().start();
+            map.postInvalidate();
+            double duration;
+            Log.d(TAG, "handleMessage: "+roadFetcher.getRoutes().length);
+            if(roadFetcher.getRoutes()[0].mDuration/60 >60){
+                duration = (roadFetcher.getRoutes()[0].mDuration / 60) / 60;
+            }else{
+                duration = roadFetcher.getRoutes()[0].mDuration / 60;
+            }
+            tvTravelDetails.setText(String.format(context.getString(R.string.route_details), duration,roadFetcher.getRoutes()[0].mLength));
+        }
     }
 }

@@ -9,7 +9,6 @@ import android.location.LocationManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.ResultReceiver;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -29,14 +28,14 @@ public class BackgroundLocationService extends Service {
     private Intent mIntentService;
     private PendingIntent mPendingIntent;
     private ActivityRecognitionClient mActivityRecognitionClient;
-    private IBinder mBinder = new BackgroundLocationService.LocalBinder();
+    private final IBinder mBinder = new BackgroundLocationService.LocalBinder();
     private Task<Void> task;
     public class LocalBinder extends Binder {
         public BackgroundLocationService getServerInstance() {
             return BackgroundLocationService.this;
         }
     }
-    private int SUCCESS = 1;
+    private final int SUCCESS = 1;
 
     @Override
     public void onCreate() {

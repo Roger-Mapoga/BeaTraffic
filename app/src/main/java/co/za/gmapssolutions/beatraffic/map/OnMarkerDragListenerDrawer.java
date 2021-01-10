@@ -12,7 +12,7 @@ public class OnMarkerDragListenerDrawer implements Marker.OnMarkerDragListener{
     Polyline mPolyline;
     MapView map;
    public OnMarkerDragListenerDrawer(MapView map) {
-        mTrace = new ArrayList<GeoPoint>(100);
+        mTrace = new ArrayList<>(100);
         mPolyline = new Polyline();
         mPolyline.setColor(0xAA0000FF);
         mPolyline.setWidth(2.0f);

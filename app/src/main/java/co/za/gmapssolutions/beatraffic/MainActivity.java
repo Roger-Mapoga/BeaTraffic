@@ -1,11 +1,11 @@
 package co.za.gmapssolutions.beatraffic;
 
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.*;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -28,12 +28,12 @@ import co.za.gmapssolutions.beatraffic.Roads.DisplayRoutes;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.executor.DefaultExecutorSupplier;
 import co.za.gmapssolutions.beatraffic.map.MapTileFetcher;
-import co.za.gmapssolutions.beatraffic.nominatim.ReverseGeoCoderNominatim;
 import co.za.gmapssolutions.beatraffic.permissions.Permission;
 import co.za.gmapssolutions.beatraffic.popup.Popup;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
 import co.za.gmapssolutions.beatraffic.services.AutoStart;
 import co.za.gmapssolutions.beatraffic.services.MyLocation;
+import co.za.gmapssolutions.beatraffic.services.location.BeatTrafficLocation;
 import co.za.gmapssolutions.beatraffic.services.location.LocationReceiver;
 import co.za.gmapssolutions.beatraffic.services.location.LocationService;
 import co.za.gmapssolutions.beatraffic.transition.Constants;
@@ -65,41 +65,36 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static co.za.gmapssolutions.beatraffic.permissions.Permission.PERMISSIONS;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
     private static final String TAG = MainActivity.class.getSimpleName();
-
     //nominatim
-    private final ReverseGeoCoderNominatim geocoderNominatim = null;
-    private Future<?> geocoderNominatimFuture;
-
-    private Future<?> roadFuture;
-
+//    private final ReverseGeoCoderNominatim geocoderNominatim = null;
+//    private Future<?> geocoderNominatimFuture;
+//    private Future<?> roadFuture;
     //progess bar
     private ProgressBar progressBar;
-
     //main thread handler
     protected mHandler handler;
-
-
     //Detecting device in car
-    BroadcastReceiver broadcastReceiver;
+//    BroadcastReceiver broadcastReceiver;
     private AutoStart detectedActivity;
-    private final int activityType=-100;
+//    private final int activityType=-100;
     //rest api url
     private RestClient trafficRestClient, requestRestClient = null;
     //traffic forecast
-    private String trafficForecast;
-    private String HOST = "http://192.168.8.102";
+    private final String HOST = "http://192.168.8.102";
     //view model
     private BeaTrafficViewModel viewModel;
     //bottom sheet
     private BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior;
+    //map
+    private MapView map;
     //permissions
     private void requestPermission(String[] permissions){
         //check permissions
@@ -109,22 +104,21 @@ public class MainActivity extends AppCompatActivity
             }
         }
     }
+    BeatTrafficLocation listener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         trustAllCertificates(); //for running on emulator
         viewModel = new ViewModelProvider(this).get(BeaTrafficViewModel.class);
-
         User user = new User(1, "car");//LOGIN
-
         Configuration.getInstance().setOsmdroidBasePath(new File(this.getCacheDir(), "osmdroid"));
         Configuration.getInstance().setOsmdroidTileCache(new File(this.getCacheDir(), "osmdroid/tiles"));
-
         setContentView(R.layout.activity_main);
         Toolbar toolbar  = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         //register with osm
-        Configuration.getInstance().setUserAgentValue(getPackageName());
+        //Configuration.getInstance().setUserAgentValue(getPackageName());
         //
         progressBar = findViewById(R.id.progressBar_cyclic);
         progressBar.bringToFront();
@@ -138,10 +132,12 @@ public class MainActivity extends AppCompatActivity
         ThreadPoolExecutor backGroundThreadPoolExecutor = defaultExecutorSupplier.forBackgroundTasks();
 //        Executor runOnUiThread = defaultExecutorSupplier.forMainThreadTasks();
         //map
-        MapView map = findViewById(R.id.map);
+        map = findViewById(R.id.map);
+        Button btnStartDrive = findViewById(R.id.start_drive);
+        TextView tvTravelDetails = findViewById(R.id.travel_time);
+        bottomSheetBehavior = BottomSheetBehavior.from(findViewById(R.id.bottomSheet));
 //        TextView routeDetails =  findViewById(R.id.routeDetails);
-        final ITileSource tileSource = new XYTileSource(
-                "Mapnik", 1, 20, 256,
+        final ITileSource tileSource = new XYTileSource("Mapnik", 1, 20, 256,
                 ".png", new String[]{HOST+":7071/tile/"});
         MapTileProviderBasic tileProvider = new MapTileProviderBasic(this,tileSource);
         map.setTileProvider(tileProvider);
@@ -149,36 +145,36 @@ public class MainActivity extends AppCompatActivity
         map.setTilesScaleFactor(1.5f);
         map.setZoomRounding(true);
         //
-//        MyLocation myLocation = new MyLocation(map);
-//        MyLocationNewOverlay myLocationoverlay = new MyLocationNewOverlay(map);
-//        myLocationoverlay.enableFollowLocation();
-//       // myLocationoverlay.enableMyLocation();
-////        Log.d(TAG, "My location : "+ myLocationoverlay.getMyLocation());
-//        map.getOverlays().add(myLocationoverlay);
-//
         IMapController mapController = map.getController();
         MapTileFetcher mapTile = new MapTileFetcher(this, map, mapController);
         backGroundThreadPoolExecutor.execute(mapTile);
-
-        //
-        DisplayRoutes displayRoutes = new DisplayRoutes(this,map);
-
         //detected activity
         detectedActivity = new AutoStart();
-
-
         //location service
         Intent locationIntent = new Intent(this, LocationService.class);
+
         //location
         MyLocation myLocation = new MyLocation(map);
+        //
+        DisplayRoutes displayRoutes = new DisplayRoutes(this,map,myLocation,viewModel);
+
+        listener = new BeatTrafficLocation(this,displayRoutes);
+        listener.enableLocation();
+
+        Log.d(TAG, "onCreate: " + listener.getLastKnownLocation());
+
         LocationReceiver locationReceiver = new LocationReceiver(new Handler(), this, map, mapController,myLocation);
         locationIntent.putExtra("currentLocation", locationReceiver);
-        startService(locationIntent);
-
+//
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(locationIntent);
+        }else{
+            startService(locationIntent);
+        }
+        //
         //reverse geocoder nominatim
         GeocoderNominatim geocoder = new GeocoderNominatim(getPackageName());
         geocoder.setService(HOST+":7070/");
-
         //roads
         //Road
         OSRMRoadManager osrmRoadManager =  new OSRMRoadManager(this);
@@ -192,26 +188,17 @@ public class MainActivity extends AppCompatActivity
         } catch (IOException e) {
             e.printStackTrace();
         }
+        FloatingActionButton fab = findViewById(R.id.fab);
+        fab.setOnClickListener(view -> Snackbar.make(view, "Replace with your own action" , Snackbar.LENGTH_LONG)
+                .setAction("Action", null).show());
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action" , Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.addDrawerListener(toggle);
         toggle.syncState();
-
-        NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+        NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
-//
         //alert
         Popup popup = new Popup(this, getResources().getString(R.string.traffic_routes),
                 getResources().getString(R.string.yes), getResources().getString(R.string.continue_navigating));
@@ -225,12 +212,36 @@ public class MainActivity extends AppCompatActivity
             }
             @Override
             public boolean onZoom(ZoomEvent event){
-                //viewModel.mapZoomLevel = event.getZoomLevel();
                 viewModel.getMapZoomLevel().postValue(event.getZoomLevel());
                 return false;
             }
         });
         //states
+        AtomicReference<GeoPoint> start = new AtomicReference<>();
+        AtomicReference<GeoPoint> end = new AtomicReference<>();
+        if(viewModel.isNewlyCreated && savedInstanceState != null){
+            Parcelable[] array = savedInstanceState.getParcelableArray(viewModel.requestedRoutes);
+            if(array != null) {
+                List<Road> roadList = new ArrayList<>();
+                for (Parcelable p : array) {
+                    roadList.add((Road) p);
+                }
+                Road[] routes = new Road[roadList.size()];
+                roadList.toArray(routes);
+                viewModel.getRoutes().setValue(routes);
+            }
+            viewModel.getMapZoomLevel().setValue(savedInstanceState.getDouble(viewModel.userMapZoomLevel));
+            viewModel.getBottomSheetState().setValue(savedInstanceState.getInt(viewModel.userBottomSheetState));
+            viewModel.getBtnStartDriveState().setValue(savedInstanceState.getString(viewModel.userBtnStartDrive));
+            Log.d(TAG, "onCreate: start"+ savedInstanceState.getParcelable(viewModel.userStartPoint));
+            viewModel.getStartPoint().setValue(savedInstanceState.getParcelable(viewModel.userStartPoint));
+            start.set(viewModel.getStartPoint().getValue());
+            Log.d(TAG, "onCreate: end"+ savedInstanceState.getParcelable(viewModel.userEndPoint));
+            viewModel.getEndPoint().setValue(savedInstanceState.getParcelable(viewModel.userEndPoint));
+            end.set(viewModel.getEndPoint().getValue());
+        }
+        viewModel.isNewlyCreated = false;
+        //
         final Observer<Road[]> roadsObserver = roads -> {
             assert roads != null;
             displayRoutes.show(roads);
@@ -241,57 +252,94 @@ public class MainActivity extends AppCompatActivity
             mapController.setZoom(mapZoom);
         };
         viewModel.getMapZoomLevel().observe(this,zoomObserver);
+        final Observer<Integer> bottomSheetStateObserver =  bottomSheetState ->{
+            assert bottomSheetState != null;
+            bottomSheetBehavior.setState(bottomSheetState);
+        };
+        viewModel.getBottomSheetState().observe(this,bottomSheetStateObserver);
 
-        if(viewModel.isNewlyCreated && savedInstanceState != null){
-            Parcelable[] array = savedInstanceState.getParcelableArray(viewModel.requestedRoutes);
-            if(array != null) {
-                List<Road> roadList = new ArrayList<>();
-                for (Parcelable p : array) {
-                    roadList.add((Road) p);
+        final Observer<GeoPoint> startPointObserver = startPoint ->{
+            assert startPoint != null;
+            start.set(startPoint);
+        };
+        viewModel.getStartPoint().observe(this,startPointObserver);
+        final Observer<GeoPoint> endPointObserver = endPoint->{
+            assert endPoint != null;
+            end.set(endPoint);
+        };
+        viewModel.getEndPoint().observe(this,endPointObserver);
+        final Observer<String> driveStateObserver = driveState ->{
+            List<GeoPoint> currGeoPoint = new ArrayList<>();
+            if(driveState == null || driveState.equals("start")){
+                if(start.get() != null && end.get() != null) {
+//                    Log.d(TAG, "onCreate: size "+currGeoPoint.size());
+                    currGeoPoint.add(start.get());
+                    currGeoPoint.add(end.get());
+//                    displayRoutes.setStartPointIcon(start.get());
+//                    displayRoutes.setMarker(end.get(),"End point");
+                    zoomMapToBoundingBox(viewModel.getBoundingBox(currGeoPoint), false);
+                    btnStartDrive.setText("start");
                 }
-                Road[] routes = new Road[roadList.size()];
-                roadList.toArray(routes);
-                viewModel.getRoutes().postValue(routes);
+            }else{
+                if(driveState.equals("cancel") && start.get() != null) {
+                    currGeoPoint.add(start.get());
+//                    displayRoutes.setStartPointIcon(start.get());
+//                    displayRoutes.setMarker(end.get(),"End point");
+                    zoomMapToBoundingBox(viewModel.getBoundingBox(currGeoPoint), true);
+                    btnStartDrive.setText("cancel");
+                }
             }
-            viewModel.getMapZoomLevel().postValue(savedInstanceState.getDouble(viewModel.userMapZoomLevel));
-        }
-        viewModel.isNewlyCreated = false;
+            if(viewModel.getRoutes().getValue() != null)
+            tvTravelDetails.setText(String.format(getApplicationContext().getString(R.string.route_details), viewModel
+                            .getTravelDuration(viewModel.getRoutes().getValue()[0].mDuration),
+                    viewModel.getRoutes().getValue()[0].mLength));
+        };
+        viewModel.getBtnStartDriveState().observe(this,driveStateObserver);
+
         //bottom sheet
-        bottomSheetBehavior = BottomSheetBehavior.from(findViewById(R.id.bottomSheet));
+
         bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback(){
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
                 //Toast.makeText(getApplicationContext(),"Bottom sheet",Toast.LENGTH_LONG).show();
+                viewModel.getBottomSheetState().postValue(newState);
             }
             @Override
             public void onSlide(@NonNull View bottomSheet, float slideOffset) {
 
             }
         });
-        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
         findViewById(R.id.bottomSheetButton).setOnClickListener(view -> {
             if(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED)
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
             else
                 bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
         });
-        Button btnStartDrive = findViewById(R.id.start_drive);
 
         btnStartDrive.setOnClickListener(view -> {
-            List<GeoPoint> currGeoPoint = new ArrayList<>();
-            currGeoPoint.add(viewModel.getRoutes().getValue()[0].mRouteHigh.get(0));
-            BoundingBox currLocBb = BoundingBox.fromGeoPoints(currGeoPoint);
-            map.zoomToBoundingBox(currLocBb,true,10,18.0,10L);
-            map.postInvalidate();
-//            btnStartDrive.setVisibility(View.INVISIBLE);
-            btnStartDrive.setText("cancel");
+            if(viewModel.getBtnStartDriveState().getValue() == null) {
+                btnStartDrive.setText("cancel");
+            }else if(viewModel.getBtnStartDriveState().getValue() != null){
+                if(viewModel.getBtnStartDriveState().getValue().equals("start"))
+                    btnStartDrive.setText("cancel");
+                else
+                    btnStartDrive.setText("start");
+            }
+            viewModel.getBtnStartDriveState().postValue(btnStartDrive.getText().toString());
         });
-
-        TextView tvTravelDetails = findViewById(R.id.travel_time);
 //
-        handler = new mHandler(this, map,mapController, osrmRoadManager, locationReceiver, geocoder,
+        handler = new mHandler(this, map,mapController, osrmRoadManager, listener, geocoder,
                 user,requestRestClient,trafficRestClient,progressBar,backGroundThreadPoolExecutor,displayRoutes,
                 myLocation,viewModel,bottomSheetBehavior,tvTravelDetails);
+    }
+    public void zoomMapToBoundingBox(BoundingBox currLocBb,boolean driving){
+        if(driving) {
+            map.zoomToBoundingBox(currLocBb, true, 10, 18.0, 10L);
+        }else {
+            map.zoomToBoundingBox(currLocBb, true, 250, 18.0, 10L);
+//            map.zoomToBoundingBox(currLocBb,true,250);
+        }
+        map.postInvalidate();
     }
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
@@ -300,11 +348,23 @@ public class MainActivity extends AppCompatActivity
         outState.putParcelableArray(viewModel.requestedRoutes, viewModel.getRoutes().getValue());
         if(viewModel.getMapZoomLevel().getValue() != null)
         outState.putDouble(viewModel.userMapZoomLevel,viewModel.getMapZoomLevel().getValue());
-    }
+        if(viewModel.getBottomSheetState().getValue() != null)
+            outState.putInt(viewModel.userBottomSheetState,viewModel.getBottomSheetState().getValue());
+        if(viewModel.getBtnStartDriveState().getValue() != null)
+            outState.putString(viewModel.userBtnStartDrive,viewModel.getBtnStartDriveState().getValue());
+        if(viewModel.getStartPoint().getValue() != null)
+            outState.putParcelable(viewModel.userStartPoint,viewModel.getStartPoint().getValue());
+        if(viewModel.getEndPoint().getValue() != null)
+            outState.putParcelable(viewModel.userEndPoint,viewModel.getEndPoint().getValue());
 
+    }
+//    @Override
+//    public void onStart(){
+//        super.onStart();
+//    }
     @Override
     public void onBackPressed() {
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer = findViewById(R.id.drawer_layout);
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
         } else {
@@ -329,9 +389,6 @@ public class MainActivity extends AppCompatActivity
                 bundle.putString("nominatim-destination",s);
                 msg.setData(bundle);
                 handler.sendMessage(msg);
-//                geocoderNominatim = new ReverseGeoCoderNominatim(getApplicationContext()
-//                        ,handler,geocoder,locationReceiver.getStartPoint(),s);
-//                backGroundThreadPoolExecutor.execute(geocoderNominatim);
                 return false;
             }
             @Override
@@ -377,12 +434,12 @@ public class MainActivity extends AppCompatActivity
 
         }
 
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer =  findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         for(int i : grantResults) {
             if(i == PackageManager.PERMISSION_DENIED){
@@ -397,6 +454,7 @@ public class MainActivity extends AppCompatActivity
         super.onResume();
 //        backGroundThreadPoolExecutor.execute(mapTile);
 //        startService(LocationIntent);
+//        LocalBroadcastManager.getInstance(this).unregisterReceiver();
         LocalBroadcastManager.getInstance(this).registerReceiver(detectedActivity,
                 new IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY));
     }

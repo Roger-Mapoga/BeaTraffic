@@ -3,7 +3,6 @@ package co.za.gmapssolutions.beatraffic.services.location;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.location.LocationManager;
 import android.os.Binder;
@@ -51,16 +50,16 @@ public class BackgroundLocationService extends Service {
 
         try {
             Bundle bundle = new Bundle();
-            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            listener = new BeatTrafficLocation();
-
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 4000, 0, listener);
-
-            bundle.putDouble("currentLatitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
-            bundle.putDouble("currentLongitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
-
-            Log.v(TAG,"Last known location : " + locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).toString());
+//            locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+//            listener = new BeatTrafficLocation();
+//
+//            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 4000, 0, listener);
+//            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 4000, 0, listener);
+//
+//            bundle.putDouble("currentLatitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude());
+//            bundle.putDouble("currentLongitude",locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude());
+//
+//            Log.v(TAG,"Last known location : " + locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER).toString());
 
         }catch (SecurityException e){
             Log.v(TAG,e.getMessage());

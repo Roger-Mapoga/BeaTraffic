@@ -7,20 +7,20 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.ResultReceiver;
+import android.util.Log;
 import co.za.gmapssolutions.beatraffic.services.MyLocation;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
-public class LocationReceiver extends ResultReceiver {
+public class LocationReceiver extends ResultReceiver{
+    private String TAG = LocationReceiver.class.getSimpleName();
     private final Context context;
     private final IMapController mapController;
     private final MapView map;
     private GeoPoint startPoint;
     private final MyLocation myLocation;
     BroadcastReceiver broadcastReceiver;
-
-    //    private final AutoStart detectedActivity;
     public LocationReceiver(Handler handler, Context context, MapView map, IMapController mapController,MyLocation myLocation) {
         super(handler);
         this.context = context;
@@ -32,13 +32,15 @@ public class LocationReceiver extends ResultReceiver {
     protected void onReceiveResult(int resultCode, Bundle resultData) {
         int SUCCESS = 1;
         if(SUCCESS == resultCode){
-            startPoint = new GeoPoint(resultData.getDouble("currentLatitude"),resultData.getDouble("currentLongitude"));
+
             IntentFilter filter = new IntentFilter();
             filter.addAction("co.za.gmapssolutions.beatraffic.services.UserActivityType");
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if(intent != null) {
+                        Log.d(TAG, "userActivity: "+intent.getIntExtra("UserActivityType", -1));
+
                         myLocation.setUserActivity(intent.getIntExtra("UserActivityType", -1));
                         myLocation.setUserConfidence(intent.getIntExtra("UserActivityConfidence", -1));
                     }
@@ -46,30 +48,13 @@ public class LocationReceiver extends ResultReceiver {
             };
             context.registerReceiver(broadcastReceiver,filter);
 
-
-            myLocation.setMyLocation(resultData.getParcelable("loc"));
-            mapController.animateTo(startPoint);
-
-           // Log.d("TAG", "onReceiveResult: "+resultData.getString());
-           // myLocation.draw(new Canvas(),map.getProjection());
-            //-26.20132  //28.04044
-//           startPoint.setLatitude(-26.20132);
-//           startPoint.setLongitude(28.04044);
-//            mapController.setCenter(startPoint);
+//            startPoint = new GeoPoint(resultData.getDouble("currentLatitude"),resultData.getDouble("currentLongitude"));
 //
-//            Marker startMarker = new Marker(map);
-//            startMarker.setPosition(startPoint);
-//            startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-////
-//            startMarker.setIcon(context.getResources().getDrawable(R.drawable.marker_default,context.getResources().newTheme()));
-//            startMarker.setTitle("Start point - "+startPoint.getLongitude() +" : "+startPoint.getLatitude() );
+//            myLocation.setMyLocation(resultData.getParcelable("loc"));
+//            mapController.animateTo(startPoint);
 //
-//            startMarker.setDraggable(true);
-//            startMarker.setOnMarkerDragListener(new OnMarkerDragListenerDrawer(map));
-//            map.getOverlays().add(startMarker);
-           // map.invalidate();
-            map.postInvalidate();
-            map.getOverlays().add(myLocation);
+//            map.getOverlays().add(myLocation);
+//            map.postInvalidate();
         }
         super.onReceiveResult(resultCode, resultData);
     }
@@ -77,5 +62,7 @@ public class LocationReceiver extends ResultReceiver {
     public GeoPoint getStartPoint(){
         return startPoint;
     }
+
+
 }
 

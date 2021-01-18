@@ -18,10 +18,11 @@ public class PriorityThreadFactory implements ThreadFactory {
             public void run() {
                 try {
                     Process.setThreadPriority(threadPriority);
+                    runnable.run();
                 }catch (Throwable t){
                     //Toast.makeText(,"Unable to set thread priority",Toast.LENGTH_LONG);
                 }
-                runnable.run();
+
             }
         };
         return new Thread(wrapperRunnable);

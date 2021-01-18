@@ -72,8 +72,7 @@ public class MyLocation extends Overlay {
             mCirclePaint.setStyle(Paint.Style.STROKE);
             canvas.drawCircle(mDrawPixel.x, mDrawPixel.y, radius, mCirclePaint);
         //}
-
-        if (lastFix.hasBearing() && userActivity == DetectedActivity.IN_VEHICLE && userConfidence > 70){
+        if (lastFix.hasBearing() && userActivity == DetectedActivity.IN_VEHICLE ){//&& userConfidence > 70
             canvas.save();
             // Rotate the icon if we have a GPS fix, take into account if the map is already rotated
             float mapRotation;

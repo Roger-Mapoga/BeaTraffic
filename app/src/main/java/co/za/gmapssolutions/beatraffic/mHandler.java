@@ -19,7 +19,7 @@ import co.za.gmapssolutions.beatraffic.restClient.KafkaConsumerRestClient;
 import co.za.gmapssolutions.beatraffic.restClient.KafkaProducerRestClient;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
 import co.za.gmapssolutions.beatraffic.services.MyLocation;
-import co.za.gmapssolutions.beatraffic.services.location.LocationReceiver;
+import co.za.gmapssolutions.beatraffic.services.location.BeatTrafficLocation;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import org.json.JSONArray;
 import org.osmdroid.api.IMapController;
@@ -42,7 +42,7 @@ public class mHandler extends Handler {
     private final Context context;
     private final MapView map;
     private final RoadManager roadManager;
-    private final LocationReceiver locationReceiver;
+    private final BeatTrafficLocation listner;
     private ReverseGeoCoderNominatim geocoderNominatim;
     private final GeocoderNominatim geocoder;
     private final User user;
@@ -55,7 +55,7 @@ public class mHandler extends Handler {
     private final MyLocation myLocation;
     private final IMapController mapController;
     private final TextView tvTravelDetails;
-    public mHandler(Context context, MapView map, IMapController mapController, RoadManager roadManager, LocationReceiver locationReceiver,
+    public mHandler(Context context, MapView map, IMapController mapController, RoadManager roadManager, BeatTrafficLocation listner,
                     GeocoderNominatim geocoder, User user, RestClient requestRestClient, RestClient trafficRestClient,
                     ProgressBar progressBar, ThreadPoolExecutor backGroundThreadPoolExecutor,
                     DisplayRoutes displayRoutes, MyLocation myLocation, BeaTrafficViewModel viewModel,
@@ -64,7 +64,7 @@ public class mHandler extends Handler {
         this.map = map;
         this.mapController = mapController;
         this.roadManager = roadManager;
-        this.locationReceiver = locationReceiver;
+        this.listner = listner;
 //        this.geocoderNominatim = geocoderNominatim;
         this.geocoder = geocoder;
         this.user = user;
@@ -83,30 +83,34 @@ public class mHandler extends Handler {
         Bundle bundle = msg.getData();
         String nominatimDestination = bundle.getString("nominatim-destination");
         if(nominatimDestination != null){
+            viewModel.getStartPoint().postValue(listner.getLastKnownLocation());
             geocoderNominatim = new ReverseGeoCoderNominatim(context
-                        ,this,geocoder,locationReceiver.getStartPoint(),nominatimDestination);
+                        ,this,geocoder,listner.getLastKnownLocation(),nominatimDestination);
                 backGroundThreadPoolExecutor.execute(geocoderNominatim);
         }
         String destination = bundle.getString("get-destination");
         String destinationError = bundle.getString("get-destination-error");
 
         if (destination != null && destination.equals("success")) {
+            viewModel.getEndPoint().postValue(geocoderNominatim.getDestination());
             roadFetcher = new RoadFetcher(context, this, map,mapController,roadManager,
-                    locationReceiver.getStartPoint(), geocoderNominatim.getDestination(),myLocation,displayRoutes);
+                    listner.getLastKnownLocation(), geocoderNominatim.getDestination(),displayRoutes);
             backGroundThreadPoolExecutor.execute(roadFetcher);
             Log.v(TAG, "Destination fetched");
         }else if(destinationError != null && destinationError.equals("error")){
             Toast.makeText(context,"destination error",Toast.LENGTH_LONG).show();
+            progressBar.setVisibility(View.INVISIBLE);
         }
         String roads = bundle.getString("get-roads");
         boolean showBottomSheet = false;
         if (roads != null && roads.equals("done")) {
             KafkaProducerRestClient producerRestClient = new KafkaProducerRestClient(requestRestClient, this,user,
                     geocoderNominatim.getDepartureAddress(),geocoderNominatim.getDestinationAddress(),
-                    viewModel.getRoutes().getValue(),new JSONArray());
+                    roadFetcher.getRoutes(),new JSONArray());
             viewModel.getRoutes().postValue(roadFetcher.getRoutes());
             backGroundThreadPoolExecutor.submit(producerRestClient);
             showBottomSheet = true;
+//            viewModel.getShowBottomSheet().postValue(true);
         }
         int httpsPostResponse = bundle.getInt("http-post-status");
         if(httpsPostResponse == HttpURLConnection.HTTP_CREATED){
@@ -131,21 +135,23 @@ public class mHandler extends Handler {
         //bottom sheet
         if(showBottomSheet){
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+
             List<GeoPoint> geoPointList = new ArrayList<>();
-            geoPointList.add(locationReceiver.getStartPoint());
+            geoPointList.add(listner.getLastKnownLocation());
             geoPointList.add(geocoderNominatim.getDestination());
-            BoundingBox boundingBox = BoundingBox.fromGeoPoints(geoPointList);
-            map.zoomToBoundingBox(boundingBox,true,180);
+            BoundingBox boundingBox = viewModel.getBoundingBox(geoPointList);
+            map.zoomToBoundingBox(boundingBox,
+                    true,250);
+//            viewModel.getBoundingBox().postValue(boundingBox);
 //            map.animate().start();
             map.postInvalidate();
-            double duration;
             Log.d(TAG, "handleMessage: "+roadFetcher.getRoutes().length);
-            if(roadFetcher.getRoutes()[0].mDuration/60 >60){
-                duration = (roadFetcher.getRoutes()[0].mDuration / 60) / 60;
-            }else{
-                duration = roadFetcher.getRoutes()[0].mDuration / 60;
-            }
-            tvTravelDetails.setText(String.format(context.getString(R.string.route_details), duration,roadFetcher.getRoutes()[0].mLength));
+
+            tvTravelDetails.setText(String.format(context.getString(R.string.route_details), viewModel
+                    .getTravelDuration(roadFetcher.getRoutes()[0].mDuration),roadFetcher.getRoutes()[0].mLength));
+            viewModel.getBottomSheetState().postValue(bottomSheetBehavior.getState());
         }
     }
+
+
 }

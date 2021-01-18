@@ -3,6 +3,7 @@ package co.za.gmapssolutions.beatraffic.services;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.widget.Toast;
 import co.za.gmapssolutions.beatraffic.services.location.LocationService;
 import co.za.gmapssolutions.beatraffic.transition.Constants;
 import com.google.android.gms.location.DetectedActivity;
@@ -49,7 +50,7 @@ public class AutoStart extends BroadcastReceiver {
             local.putExtra("UserActivityTypeString",activityType);
             local.putExtra("UserActivityConfidence", confidence);
             context.sendBroadcast(local);
-//            Toast.makeText(context,"Activity type: " + activityType+" , confidence: " + confidence,Toast.LENGTH_LONG).show();
+            Toast.makeText(context,"Activity type: " + activityType+" , confidence: " + confidence,Toast.LENGTH_LONG).show();
 //            Log.d(TAG, "onReceive: sending location to server ");
         }else if(intent.getAction().equals(Intent.ACTION_BOOT_COMPLETED)){
             context.startService(new Intent(context, LocationService.class));

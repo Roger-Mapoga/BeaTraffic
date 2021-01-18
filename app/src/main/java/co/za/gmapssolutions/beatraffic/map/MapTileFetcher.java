@@ -12,11 +12,11 @@ import org.osmdroid.views.overlay.Marker;
 
 public class MapTileFetcher implements Runnable{
     private static final String TAG = MapTileFetcher.class.getSimpleName();
-    private Context context;
+    private final Context context;
     private TextView textView;
 
-    private MapView map;
-    private IMapController mapController;
+    private final MapView map;
+    private final IMapController mapController;
     private Marker nodeMarker;
     private RoadNode node;
 
@@ -27,15 +27,11 @@ public class MapTileFetcher implements Runnable{
     }
     @Override
     public void run(){
-
-//        map.setTileSource(tileSource);
-
-        // map.setTileSource(TileSourceFactory.MAPNIK);
-        map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.SHOW_AND_FADEOUT);
+//      map.setTileSource(tileSource);
+// map.setTileSource(TileSourceFactory.MAPNIK);
+        map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.ALWAYS);
         map.setMultiTouchControls(true);
-
         mapController.setZoom(20.0);
-
         map.invalidate();
 
     }

@@ -1,18 +1,14 @@
 package co.za.gmapssolutions.beatraffic.Roads;
 
 import android.content.Context;
-import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import co.za.gmapssolutions.beatraffic.R;
-import co.za.gmapssolutions.beatraffic.services.MyLocation;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.routing.Road;
 import org.osmdroid.bonuspack.routing.RoadManager;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.Marker;
 
 import java.util.ArrayList;
 
@@ -27,10 +23,9 @@ public class RoadFetcher implements Runnable {
     private Road[] road = new Road[10];
     private final Bundle bundle = new Bundle();
     private final DisplayRoutes displayRoutes;
-    private final MyLocation myLocation;
     private final IMapController mapController;
     public RoadFetcher(Context context, Handler handler, MapView map, IMapController mapController, RoadManager roadManager, GeoPoint startPoint,
-                       GeoPoint endPoint, MyLocation myLocation, DisplayRoutes displayRoutes){
+                       GeoPoint endPoint, DisplayRoutes displayRoutes){
         this.context = context;
         this.handler = handler;
         this.startPoint = startPoint;
@@ -39,7 +34,6 @@ public class RoadFetcher implements Runnable {
         this.mapController = mapController;
         this.roadManager = roadManager;
         this.displayRoutes = displayRoutes;
-        this.myLocation = myLocation;
     }
     @Override
     public void run(){
@@ -48,13 +42,10 @@ public class RoadFetcher implements Runnable {
         routePoints.add(startPoint);
         routePoints.add(endPoint);
         map.getOverlays().clear();
-        Location mLocation = new Location("");
-        mLocation.setLatitude(startPoint.getLatitude());
-        mLocation.setLongitude(startPoint.getLongitude());
-        myLocation.setMyLocation(mLocation);
 
+        displayRoutes.setStartPointIcon(startPoint);
         //setMarker(startPoint,"Start point");
-        setMarker(endPoint,"End point");
+        displayRoutes.setMarker(endPoint,"End point");
 
         Message msg = handler.obtainMessage();
         roadManager.addRequestOption("alternatives=10");
@@ -67,7 +58,6 @@ public class RoadFetcher implements Runnable {
 //        mapController.setZoom(9.3f);
 //        map.invalidate();
         map.postInvalidate();
-        map.getOverlays().add(myLocation);
         bundle.putString("get-roads","done");
         msg.setData(bundle);
         handler.sendMessage(msg);
@@ -75,13 +65,5 @@ public class RoadFetcher implements Runnable {
     public Road[] getRoutes() {
         return road;
     }
-    private void setMarker(GeoPoint point,String message){
-        Marker startMarker = new Marker(map);
-        startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        startMarker.setIcon(context.getResources().getDrawable(R.drawable.marker_default,context.getResources().newTheme()));
-        startMarker.setTitle(message);
-        if(point != null)
-        startMarker.setPosition(point);
-        map.getOverlays().add(startMarker);
-    }
+
 }

@@ -10,15 +10,13 @@ import android.os.ResultReceiver;
 import android.util.Log;
 import co.za.gmapssolutions.beatraffic.services.MyLocation;
 import org.osmdroid.api.IMapController;
-import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 
 public class LocationReceiver extends ResultReceiver{
-    private String TAG = LocationReceiver.class.getSimpleName();
+    private final String TAG = LocationReceiver.class.getSimpleName();
     private final Context context;
     private final IMapController mapController;
     private final MapView map;
-    private GeoPoint startPoint;
     private final MyLocation myLocation;
     BroadcastReceiver broadcastReceiver;
     public LocationReceiver(Handler handler, Context context, MapView map, IMapController mapController,MyLocation myLocation) {
@@ -47,22 +45,8 @@ public class LocationReceiver extends ResultReceiver{
                 }
             };
             context.registerReceiver(broadcastReceiver,filter);
-
-//            startPoint = new GeoPoint(resultData.getDouble("currentLatitude"),resultData.getDouble("currentLongitude"));
-//
-//            myLocation.setMyLocation(resultData.getParcelable("loc"));
-//            mapController.animateTo(startPoint);
-//
-//            map.getOverlays().add(myLocation);
-//            map.postInvalidate();
         }
         super.onReceiveResult(resultCode, resultData);
     }
-
-    public GeoPoint getStartPoint(){
-        return startPoint;
-    }
-
-
 }
 

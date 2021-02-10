@@ -3,9 +3,6 @@ package co.za.gmapssolutions.beatraffic.permissions;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.os.Build;
-import android.util.Log;
-import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 
 public class Permission {
@@ -27,10 +24,8 @@ public class Permission {
         if (context != null && permissions != null) {
             for (String permission : permissions) {
                 if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
-                    Log.v(TAG, "Permission is granted");
                     return false;
                 }
-                Log.v(TAG, "Permission is revoked");
             }
         }
         return true;

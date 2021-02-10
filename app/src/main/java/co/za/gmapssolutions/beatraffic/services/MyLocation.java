@@ -101,4 +101,8 @@ public class MyLocation extends Overlay {
         if(myLocation != null)
         drawMyLocation(c,pProjection,myLocation);
     }
+    public GeoPoint getLastKnownLocation() {
+        return mGeoPoint;
+    }
+
 }

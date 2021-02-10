@@ -7,7 +7,6 @@ import android.os.Message;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import co.za.gmapssolutions.beatraffic.Roads.DisplayForecast;
@@ -34,7 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 
-public class mHandler extends Handler {
+public class mHandler extends Handler{
     //
     private static final String TAG = mHandler.class.getSimpleName();
 
@@ -54,12 +53,11 @@ public class mHandler extends Handler {
     private final BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior;
     private final MyLocation myLocation;
     private final IMapController mapController;
-    private final TextView tvTravelDetails;
     public mHandler(Context context, MapView map, IMapController mapController, RoadManager roadManager, BeatTrafficLocation listner,
                     GeocoderNominatim geocoder, User user, RestClient requestRestClient, RestClient trafficRestClient,
                     ProgressBar progressBar, ThreadPoolExecutor backGroundThreadPoolExecutor,
                     DisplayRoutes displayRoutes, MyLocation myLocation, BeaTrafficViewModel viewModel,
-                    BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior, TextView tvTravelDetails){
+                    BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior){
         this.context = context;
         this.map = map;
         this.mapController = mapController;
@@ -76,16 +74,15 @@ public class mHandler extends Handler {
         this.myLocation = myLocation;
         this.viewModel = viewModel;
         this.bottomSheetBehavior = bottomSheetBehavior;
-        this.tvTravelDetails = tvTravelDetails;
     }
     @Override
     public void handleMessage(Message msg) {
         Bundle bundle = msg.getData();
         String nominatimDestination = bundle.getString("nominatim-destination");
         if(nominatimDestination != null){
-            viewModel.getStartPoint().postValue(listner.getLastKnownLocation());
+            viewModel.getStartPoint().postValue(myLocation.getLastKnownLocation());
             geocoderNominatim = new ReverseGeoCoderNominatim(context
-                        ,this,geocoder,listner.getLastKnownLocation(),nominatimDestination);
+                        ,this,geocoder,myLocation.getLastKnownLocation(),nominatimDestination);
                 backGroundThreadPoolExecutor.execute(geocoderNominatim);
         }
         String destination = bundle.getString("get-destination");
@@ -94,7 +91,7 @@ public class mHandler extends Handler {
         if (destination != null && destination.equals("success")) {
             viewModel.getEndPoint().postValue(geocoderNominatim.getDestination());
             roadFetcher = new RoadFetcher(context, this, map,mapController,roadManager,
-                    listner.getLastKnownLocation(), geocoderNominatim.getDestination(),displayRoutes);
+                    myLocation.getLastKnownLocation(), geocoderNominatim.getDestination(),displayRoutes);
             backGroundThreadPoolExecutor.execute(roadFetcher);
             Log.v(TAG, "Destination fetched");
         }else if(destinationError != null && destinationError.equals("error")){
@@ -110,7 +107,6 @@ public class mHandler extends Handler {
             viewModel.getRoutes().postValue(roadFetcher.getRoutes());
             backGroundThreadPoolExecutor.submit(producerRestClient);
             showBottomSheet = true;
-//            viewModel.getShowBottomSheet().postValue(true);
         }
         int httpsPostResponse = bundle.getInt("http-post-status");
         if(httpsPostResponse == HttpURLConnection.HTTP_CREATED){
@@ -135,23 +131,16 @@ public class mHandler extends Handler {
         //bottom sheet
         if(showBottomSheet){
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-
+            bottomSheetBehavior.setHideable(false);
             List<GeoPoint> geoPointList = new ArrayList<>();
-            geoPointList.add(listner.getLastKnownLocation());
+            geoPointList.add(myLocation.getLastKnownLocation());
             geoPointList.add(geocoderNominatim.getDestination());
             BoundingBox boundingBox = viewModel.getBoundingBox(geoPointList);
             map.zoomToBoundingBox(boundingBox,
                     true,250);
-//            viewModel.getBoundingBox().postValue(boundingBox);
-//            map.animate().start();
             map.postInvalidate();
-            Log.d(TAG, "handleMessage: "+roadFetcher.getRoutes().length);
-
-            tvTravelDetails.setText(String.format(context.getString(R.string.route_details), viewModel
-                    .getTravelDuration(roadFetcher.getRoutes()[0].mDuration),roadFetcher.getRoutes()[0].mLength));
             viewModel.getBottomSheetState().postValue(bottomSheetBehavior.getState());
+            viewModel.getBottomSheetHidden().postValue(bottomSheetBehavior.isHideable());
         }
     }
-
-
 }

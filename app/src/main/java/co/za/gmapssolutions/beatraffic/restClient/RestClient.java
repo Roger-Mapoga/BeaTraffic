@@ -11,13 +11,13 @@ import java.nio.charset.StandardCharsets;
 public class RestClient {
     private final String TAG = RestClient.class.getSimpleName();
     private final URL url;
-    private final StringBuilder response = new StringBuilder();
+    private StringBuilder response = new StringBuilder();
 
     public RestClient(URL url){
         this.url = url;
 
     }
-    public int post(String data) throws IOException {
+    public HttpURLConnection post(String data) throws IOException {
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         setup(con);
         con.setRequestMethod("POST");
@@ -26,9 +26,10 @@ public class RestClient {
             byte[] input = data.getBytes(StandardCharsets.UTF_8);
             os.write(input, 0, input.length);
         }
-        return con.getResponseCode();
+        return con;
     }
     public int get() throws IOException {
+        response = new StringBuilder();
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         setup(con);
         con.setRequestMethod("GET");
@@ -41,6 +42,7 @@ public class RestClient {
             }
             in.close();
         }
+        con.disconnect();
         return con.getResponseCode();
     }
     public String getData(){

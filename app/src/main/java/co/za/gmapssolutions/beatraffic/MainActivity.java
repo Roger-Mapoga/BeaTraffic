@@ -1,100 +1,50 @@
 package co.za.gmapssolutions.beatraffic;
 
-import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
-import android.os.*;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.Button;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SearchView;
-import androidx.appcompat.widget.Toolbar;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import co.za.gmapssolutions.beatraffic.Roads.DisplayRoutes;
+import androidx.viewpager2.widget.ViewPager2;
+import co.za.gmapssolutions.beatraffic.domain.AuthenticationPagerAdapter;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.executor.DefaultExecutorSupplier;
-import co.za.gmapssolutions.beatraffic.map.MapTileFetcher;
 import co.za.gmapssolutions.beatraffic.permissions.Permission;
-import co.za.gmapssolutions.beatraffic.popup.Popup;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
-import co.za.gmapssolutions.beatraffic.services.AutoStart;
-import co.za.gmapssolutions.beatraffic.services.MyLocation;
-import co.za.gmapssolutions.beatraffic.services.location.BeatTrafficLocation;
-import co.za.gmapssolutions.beatraffic.services.location.LocationReceiver;
-import co.za.gmapssolutions.beatraffic.services.location.LocationService;
-import co.za.gmapssolutions.beatraffic.transition.Constants;
-import com.google.android.material.bottomsheet.BottomSheetBehavior;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import co.za.gmapssolutions.beatraffic.security.SecurePreferences;
 import com.google.android.material.navigation.NavigationView;
-import com.google.android.material.snackbar.Snackbar;
-import org.osmdroid.api.IMapController;
-import org.osmdroid.bonuspack.location.GeocoderNominatim;
-import org.osmdroid.bonuspack.routing.OSRMRoadManager;
-import org.osmdroid.bonuspack.routing.Road;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.osmdroid.config.Configuration;
-import org.osmdroid.events.MapListener;
-import org.osmdroid.events.ScrollEvent;
-import org.osmdroid.events.ZoomEvent;
-import org.osmdroid.tileprovider.MapTileProviderBasic;
-import org.osmdroid.tileprovider.tilesource.ITileSource;
-import org.osmdroid.tileprovider.tilesource.XYTileSource;
-import org.osmdroid.util.BoundingBox;
-import org.osmdroid.util.GeoPoint;
-import org.osmdroid.views.MapView;
 
 import javax.net.ssl.*;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static co.za.gmapssolutions.beatraffic.permissions.Permission.PERMISSIONS;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
     private static final String TAG = MainActivity.class.getSimpleName();
-    //nominatim
-//    private final ReverseGeoCoderNominatim geocoderNominatim = null;
-//    private Future<?> geocoderNominatimFuture;
-//    private Future<?> roadFuture;
-    //progess bar
-    private ProgressBar progressBar;
-    //main thread handler
-    protected mHandler handler;
-    //Detecting device in car
-//    BroadcastReceiver broadcastReceiver;
-    private AutoStart detectedActivity;
-//    private final int activityType=-100;
-    //rest api url
-    private RestClient trafficRestClient, requestRestClient = null;
-    //traffic forecast
-    private final String HOST = "http://192.168.8.102";
-    //view model
-    private BeaTrafficViewModel viewModel;
-    //bottom sheet
-    private BottomSheetBehavior<ConstraintLayout> bottomSheetBehavior;
-    //map
-    private MapView map;
+    private final String HOST = "http://192.168.8.106"; //"http://taungcareerdevelopment.co.za";
     //permissions
     private void requestPermission(String[] permissions){
         //check permissions
@@ -104,264 +54,102 @@ public class MainActivity extends AppCompatActivity
             }
         }
     }
-    BeatTrafficLocation listener;
-
+    private MainFragment mainFragment;
+    private RestClient loginOrRegister;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        requestPermission(PERMISSIONS);
         trustAllCertificates(); //for running on emulator
-        viewModel = new ViewModelProvider(this).get(BeaTrafficViewModel.class);
-        User user = new User(1, "car");//LOGIN
+        //login logic
+        ViewPager2 viewPager = findViewById(R.id.viewPager);
+        viewPager.setUserInputEnabled(false);
+        AuthenticationPagerAdapter  authenticationPagerAdapter = new AuthenticationPagerAdapter(getSupportFragmentManager(),
+                getLifecycle());
+        SecurePreferences preferences = new SecurePreferences(this, "user-info",
+                "YourSecurityKey", true);
+        //mapstorage osmdroid
         Configuration.getInstance().setOsmdroidBasePath(new File(this.getCacheDir(), "osmdroid"));
         Configuration.getInstance().setOsmdroidTileCache(new File(this.getCacheDir(), "osmdroid/tiles"));
-        setContentView(R.layout.activity_main);
-        Toolbar toolbar  = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        //register with osm
-        //Configuration.getInstance().setUserAgentValue(getPackageName());
-        //
-        progressBar = findViewById(R.id.progressBar_cyclic);
-        progressBar.bringToFront();
-        progressBar.setVisibility(View.INVISIBLE);
-        requestPermission(PERMISSIONS);
-        //
-        bottomSheetBehavior = new BottomSheetBehavior<>();
-        //Thread executor manager
-        //Threads handler
-        DefaultExecutorSupplier defaultExecutorSupplier = DefaultExecutorSupplier.getInstance();
-        ThreadPoolExecutor backGroundThreadPoolExecutor = defaultExecutorSupplier.forBackgroundTasks();
-//        Executor runOnUiThread = defaultExecutorSupplier.forMainThreadTasks();
-        //map
-        map = findViewById(R.id.map);
-        Button btnStartDrive = findViewById(R.id.start_drive);
-        TextView tvTravelDetails = findViewById(R.id.travel_time);
-        bottomSheetBehavior = BottomSheetBehavior.from(findViewById(R.id.bottomSheet));
-//        TextView routeDetails =  findViewById(R.id.routeDetails);
-        final ITileSource tileSource = new XYTileSource("Mapnik", 1, 20, 256,
-                ".png", new String[]{HOST+":7071/tile/"});
-        MapTileProviderBasic tileProvider = new MapTileProviderBasic(this,tileSource);
-        map.setTileProvider(tileProvider);
-        map.setTilesScaledToDpi(true);
-        map.setTilesScaleFactor(1.5f);
-        map.setZoomRounding(true);
-        //
-        IMapController mapController = map.getController();
-        MapTileFetcher mapTile = new MapTileFetcher(this, map, mapController);
-        backGroundThreadPoolExecutor.execute(mapTile);
-        //detected activity
-        detectedActivity = new AutoStart();
-        //location service
-        Intent locationIntent = new Intent(this, LocationService.class);
 
-        //location
-        MyLocation myLocation = new MyLocation(map);
-        //
-        DisplayRoutes displayRoutes = new DisplayRoutes(this,map,myLocation,viewModel);
-
-        listener = new BeatTrafficLocation(this,displayRoutes);
-        listener.enableLocation();
-
-        Log.d(TAG, "onCreate: " + listener.getLastKnownLocation());
-
-        LocationReceiver locationReceiver = new LocationReceiver(new Handler(), this, map, mapController,myLocation);
-        locationIntent.putExtra("currentLocation", locationReceiver);
-//
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(locationIntent);
+        if(preferences.getString("email") == null && preferences.getString("password") == null) {
+            authenticationPagerAdapter.addFragment(new LoginFragment(preferences, HOST));
+            viewPager.setAdapter(authenticationPagerAdapter);
+            IntentFilter intentFilter = new IntentFilter("co.za.gmapssolutions.beatraffic.loginOrRegister");
+            registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String email = intent.getStringExtra("email");
+                    String password = intent.getStringExtra("password");
+                    //thread
+                    DefaultExecutorSupplier defaultExecutorSupplier = DefaultExecutorSupplier.getInstance();
+                    ThreadPoolExecutor backGroundThreadPoolExecutor = defaultExecutorSupplier.forLightWeightBackgroundTasks();
+                    backGroundThreadPoolExecutor.execute(new Thread(){
+                        @Override
+                        public void run() {
+                            super.run();
+                            Intent loginStatus = new Intent().setAction("co.za.gmapssolutions.beatraffic.loginOrRegisterError");
+                            try {
+                                URL url = new URL(HOST+":8080/loginOrRegister");
+                                loginOrRegister = new RestClient(url);
+                                JSONObject userDetails = new JSONObject();
+                                userDetails.put("email",email);
+                                userDetails.put("password",password);
+                                HttpURLConnection con = loginOrRegister.post(userDetails.toString());
+                                if(con.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                                    long Id = Long.parseLong(new BufferedReader(new InputStreamReader(con.getInputStream())).readLine());
+                                    preferences.put("userId",String.valueOf(Id));
+                                    preferences.put("email",email);
+                                    preferences.put("password",password);
+                                    loginStatus.putExtra("loginSuccess","success");
+                                }else{
+                                    loginStatus.putExtra("loginError",new BufferedReader(new InputStreamReader(con.getInputStream())).readLine());
+                                }
+                                sendBroadcast(loginStatus);
+                            } catch (JSONException | IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                }
+            }, intentFilter);
+            IntentFilter intentFilter1 = new IntentFilter("co.za.gmapssolutions.beatraffic.loginOrRegisterError");
+            registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String loginSuccess = intent.getStringExtra("loginSuccess");
+                    Log.i(TAG, "onReceive: "+loginSuccess);
+                    assert loginSuccess != null;
+                    if(!loginSuccess.isEmpty() && loginSuccess.equals("success")){
+                        User user = new User(Long.parseLong(preferences.getString("userId")), "car");
+                        authenticationPagerAdapter.clear();
+                        mainFragment = new MainFragment(HOST, user);
+                        authenticationPagerAdapter.addFragment(mainFragment);
+                        viewPager.setAdapter(authenticationPagerAdapter);
+                    }
+                }
+            },intentFilter1);
         }else{
-            startService(locationIntent);
+            User user = new User(Long.parseLong(preferences.getString("userId")), "car");
+            authenticationPagerAdapter.clear();
+            mainFragment = new MainFragment(HOST,user);
+            authenticationPagerAdapter.addFragment(mainFragment);
+            viewPager.setAdapter(authenticationPagerAdapter);
         }
-        //
-        //reverse geocoder nominatim
-        GeocoderNominatim geocoder = new GeocoderNominatim(getPackageName());
-        geocoder.setService(HOST+":7070/");
-        //roads
-        //Road
-        OSRMRoadManager osrmRoadManager =  new OSRMRoadManager(this);
-        osrmRoadManager.setService(HOST+":5000/route/v1/driving/");
-        //rest api
-        try {
-            URL requestUrl = new URL(HOST+":8080/request");
-            URL trafficUrl = new URL(HOST+":8080/traffic");
-            requestRestClient = new RestClient(requestUrl);
-            trafficRestClient = new RestClient(trafficUrl);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(view -> Snackbar.make(view, "Replace with your own action" , Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show());
-
-        DrawerLayout drawer = findViewById(R.id.drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.addDrawerListener(toggle);
-        toggle.syncState();
-        NavigationView navigationView = findViewById(R.id.nav_view);
-        navigationView.setNavigationItemSelectedListener(this);
-        //alert
-        Popup popup = new Popup(this, getResources().getString(R.string.traffic_routes),
-                getResources().getString(R.string.yes), getResources().getString(R.string.continue_navigating));
-        //destination handle
-        AlertDialog alertDialog = popup.create();
-        viewModel.getMapZoomLevel().setValue(map.getZoomLevelDouble());
-        map.addMapListener(new MapListener(){
-            @Override
-            public boolean onScroll(ScrollEvent event) {
-                return false;
-            }
-            @Override
-            public boolean onZoom(ZoomEvent event){
-                viewModel.getMapZoomLevel().postValue(event.getZoomLevel());
-                return false;
-            }
-        });
-        //states
-        AtomicReference<GeoPoint> start = new AtomicReference<>();
-        AtomicReference<GeoPoint> end = new AtomicReference<>();
-        if(viewModel.isNewlyCreated && savedInstanceState != null){
-            Parcelable[] array = savedInstanceState.getParcelableArray(viewModel.requestedRoutes);
-            if(array != null) {
-                List<Road> roadList = new ArrayList<>();
-                for (Parcelable p : array) {
-                    roadList.add((Road) p);
-                }
-                Road[] routes = new Road[roadList.size()];
-                roadList.toArray(routes);
-                viewModel.getRoutes().setValue(routes);
-            }
-            viewModel.getMapZoomLevel().setValue(savedInstanceState.getDouble(viewModel.userMapZoomLevel));
-            viewModel.getBottomSheetState().setValue(savedInstanceState.getInt(viewModel.userBottomSheetState));
-            viewModel.getBtnStartDriveState().setValue(savedInstanceState.getString(viewModel.userBtnStartDrive));
-            Log.d(TAG, "onCreate: start"+ savedInstanceState.getParcelable(viewModel.userStartPoint));
-            viewModel.getStartPoint().setValue(savedInstanceState.getParcelable(viewModel.userStartPoint));
-            start.set(viewModel.getStartPoint().getValue());
-            Log.d(TAG, "onCreate: end"+ savedInstanceState.getParcelable(viewModel.userEndPoint));
-            viewModel.getEndPoint().setValue(savedInstanceState.getParcelable(viewModel.userEndPoint));
-            end.set(viewModel.getEndPoint().getValue());
-        }
-        viewModel.isNewlyCreated = false;
-        //
-        final Observer<Road[]> roadsObserver = roads -> {
-            assert roads != null;
-            displayRoutes.show(roads);
-        };
-        viewModel.getRoutes().observe(this,roadsObserver);
-        final Observer<Double> zoomObserver = mapZoom -> {
-            assert mapZoom != null;
-            mapController.setZoom(mapZoom);
-        };
-        viewModel.getMapZoomLevel().observe(this,zoomObserver);
-        final Observer<Integer> bottomSheetStateObserver =  bottomSheetState ->{
-            assert bottomSheetState != null;
-            bottomSheetBehavior.setState(bottomSheetState);
-        };
-        viewModel.getBottomSheetState().observe(this,bottomSheetStateObserver);
-
-        final Observer<GeoPoint> startPointObserver = startPoint ->{
-            assert startPoint != null;
-            start.set(startPoint);
-        };
-        viewModel.getStartPoint().observe(this,startPointObserver);
-        final Observer<GeoPoint> endPointObserver = endPoint->{
-            assert endPoint != null;
-            end.set(endPoint);
-        };
-        viewModel.getEndPoint().observe(this,endPointObserver);
-        final Observer<String> driveStateObserver = driveState ->{
-            List<GeoPoint> currGeoPoint = new ArrayList<>();
-            if(driveState == null || driveState.equals("start")){
-                if(start.get() != null && end.get() != null) {
-//                    Log.d(TAG, "onCreate: size "+currGeoPoint.size());
-                    currGeoPoint.add(start.get());
-                    currGeoPoint.add(end.get());
-//                    displayRoutes.setStartPointIcon(start.get());
-//                    displayRoutes.setMarker(end.get(),"End point");
-                    zoomMapToBoundingBox(viewModel.getBoundingBox(currGeoPoint), false);
-                    btnStartDrive.setText("start");
-                }
-            }else{
-                if(driveState.equals("cancel") && start.get() != null) {
-                    currGeoPoint.add(start.get());
-//                    displayRoutes.setStartPointIcon(start.get());
-//                    displayRoutes.setMarker(end.get(),"End point");
-                    zoomMapToBoundingBox(viewModel.getBoundingBox(currGeoPoint), true);
-                    btnStartDrive.setText("cancel");
-                }
-            }
-            if(viewModel.getRoutes().getValue() != null)
-            tvTravelDetails.setText(String.format(getApplicationContext().getString(R.string.route_details), viewModel
-                            .getTravelDuration(viewModel.getRoutes().getValue()[0].mDuration),
-                    viewModel.getRoutes().getValue()[0].mLength));
-        };
-        viewModel.getBtnStartDriveState().observe(this,driveStateObserver);
-
-        //bottom sheet
-
-        bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback(){
-            @Override
-            public void onStateChanged(@NonNull View bottomSheet, int newState) {
-                //Toast.makeText(getApplicationContext(),"Bottom sheet",Toast.LENGTH_LONG).show();
-                viewModel.getBottomSheetState().postValue(newState);
-            }
-            @Override
-            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
-
-            }
-        });
-        findViewById(R.id.bottomSheetButton).setOnClickListener(view -> {
-            if(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED)
-                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-            else
-                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
-        });
-
-        btnStartDrive.setOnClickListener(view -> {
-            if(viewModel.getBtnStartDriveState().getValue() == null) {
-                btnStartDrive.setText("cancel");
-            }else if(viewModel.getBtnStartDriveState().getValue() != null){
-                if(viewModel.getBtnStartDriveState().getValue().equals("start"))
-                    btnStartDrive.setText("cancel");
-                else
-                    btnStartDrive.setText("start");
-            }
-            viewModel.getBtnStartDriveState().postValue(btnStartDrive.getText().toString());
-        });
-//
-        handler = new mHandler(this, map,mapController, osrmRoadManager, listener, geocoder,
-                user,requestRestClient,trafficRestClient,progressBar,backGroundThreadPoolExecutor,displayRoutes,
-                myLocation,viewModel,bottomSheetBehavior,tvTravelDetails);
     }
-    public void zoomMapToBoundingBox(BoundingBox currLocBb,boolean driving){
-        if(driving) {
-            map.zoomToBoundingBox(currLocBb, true, 10, 18.0, 10L);
-        }else {
-            map.zoomToBoundingBox(currLocBb, true, 250, 18.0, 10L);
-//            map.zoomToBoundingBox(currLocBb,true,250);
-        }
-        map.postInvalidate();
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState, @NonNull PersistableBundle outPersistentState) {
+        super.onSaveInstanceState(outState, outPersistentState);
+        getSupportFragmentManager().putFragment(outState,"MainFragment",mainFragment);
     }
     @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        if(viewModel.getRoutes().getValue() != null)
-        outState.putParcelableArray(viewModel.requestedRoutes, viewModel.getRoutes().getValue());
-        if(viewModel.getMapZoomLevel().getValue() != null)
-        outState.putDouble(viewModel.userMapZoomLevel,viewModel.getMapZoomLevel().getValue());
-        if(viewModel.getBottomSheetState().getValue() != null)
-            outState.putInt(viewModel.userBottomSheetState,viewModel.getBottomSheetState().getValue());
-        if(viewModel.getBtnStartDriveState().getValue() != null)
-            outState.putString(viewModel.userBtnStartDrive,viewModel.getBtnStartDriveState().getValue());
-        if(viewModel.getStartPoint().getValue() != null)
-            outState.putParcelable(viewModel.userStartPoint,viewModel.getStartPoint().getValue());
-        if(viewModel.getEndPoint().getValue() != null)
-            outState.putParcelable(viewModel.userEndPoint,viewModel.getEndPoint().getValue());
-
+    public void onRestoreInstanceState(@Nullable Bundle savedInstanceState, @Nullable PersistableBundle persistentState) {
+        super.onRestoreInstanceState(savedInstanceState, persistentState);
+        assert savedInstanceState != null;
+        mainFragment = (MainFragment) getSupportFragmentManager().getFragment(savedInstanceState, "MainFragment");
     }
-//    @Override
-//    public void onStart(){
-//        super.onStart();
-//    }
     @Override
     public void onBackPressed() {
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
@@ -372,47 +160,21 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        final MenuItem search_item = menu.findItem(R.id.search);
-        final SearchView searchView = (SearchView) search_item.getActionView();
-        searchView.setFocusable(false);
-        searchView.setQueryHint("Destination...");
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String s) {
-                progressBar.setVisibility(View.VISIBLE);
-                Bundle bundle = new Bundle();
-                Message msg = handler.obtainMessage();
-                bundle.putString("nominatim-destination",s);
-                msg.setData(bundle);
-                handler.sendMessage(msg);
-                return false;
-            }
-            @Override
-            public boolean onQueryTextChange(String s) {
-                return false;
-            }
-        });
-        return true;
-    }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-//        if (id == R.id.search) {
-//            return true;
-//        }
-
-        return super.onOptionsItemSelected(item);
-    }
+//    @Override
+//    public boolean onOptionsItemSelected(MenuItem item) {
+//        // Handle action bar item clicks here. The action bar will
+//        // automatically handle clicks on the Home/Up button, so long
+//        // as you specify a parent activity in AndroidManifest.xml.
+//        int id = item.getItemId();
+//
+//        //noinspection SimplifiableIfStatement
+////        if (id == R.id.search) {
+////            return true;
+////        }
+//
+//        return super.onOptionsItemSelected(item);
+//    }
 
     @SuppressWarnings("StatementWithEmptyBody")
     @Override
@@ -438,25 +200,28 @@ public class MainActivity extends AppCompatActivity
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        for(int i : grantResults) {
-            if(i == PackageManager.PERMISSION_DENIED){
-                //this.finish();
-                break;
-            }
-        }
 
-    }
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//        for(int i : grantResults) {
+//            if(i == PackageManager.PERMISSION_DENIED){
+//                //this.finish();
+//                break;
+//            }
+//        }
+//
+//    }
     @Override
     protected void onResume() {
         super.onResume();
-//        backGroundThreadPoolExecutor.execute(mapTile);
-//        startService(LocationIntent);
-//        LocalBroadcastManager.getInstance(this).unregisterReceiver();
-        LocalBroadcastManager.getInstance(this).registerReceiver(detectedActivity,
-                new IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY));
+//        LocalBroadcastManager.getInstance(this).registerReceiver(detectedActivity,
+//                new IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY));
+    }
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        getApplicationContext().getSharedPreferences("test",MODE_PRIVATE).edit().putBoolean("isActive", false).commit();
     }
     public void trustAllCertificates() {
         try {
@@ -464,17 +229,13 @@ public class MainActivity extends AppCompatActivity
                     new X509TrustManager() {
                         @Override
                         public void checkClientTrusted(java.security.cert.X509Certificate[] x509Certificates, String s) throws CertificateException {
-
                         }
                         @Override
                         public void checkServerTrusted(java.security.cert.X509Certificate[] x509Certificates, String s) throws CertificateException {
-
                         }
                         public X509Certificate[] getAcceptedIssuers() {
                             return new X509Certificate[0];
                         }
-
-
                     }
             };
 

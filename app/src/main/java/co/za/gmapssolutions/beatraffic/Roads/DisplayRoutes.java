@@ -19,23 +19,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DisplayRoutes implements ILocationConsumer {
+    private final String TAG = DisplayRoutes.class.getSimpleName();
     private final Context context;
     private final MapView map;
     private final MyLocation myLocation;
     private final BeaTrafficViewModel viewModel;
+
     public DisplayRoutes(Context context, MapView map, MyLocation myLocation, BeaTrafficViewModel viewModel){
         this.context = context;
         this.map = map;
         this.myLocation =myLocation;
         this.viewModel = viewModel;
     }
-    public void show(Road[] road){
+    public void show(Road[] road,Context context){
         for (Road value : road) {
             Polyline roadOverlay = RoadManager.buildRoadOverlay(value);
             map.getOverlays().add(roadOverlay);
             for (int i = 0; i < value.mNodes.size(); i++) {
                 RoadNode node = value.mNodes.get(i);
-                Marker nodeMarker = new Marker(map);
+                Marker nodeMarker = new Marker(map,context);
                 nodeMarker.setPosition(node.mLocation);
 //                nodeMarker.setIcon(null);
                 nodeMarker.setVisible(false);
@@ -71,28 +73,28 @@ public class DisplayRoutes implements ILocationConsumer {
         map.getOverlays().add(myLocation);
         map.invalidate();
     }
-
     @Override
     public void updateLocation(Location location) {
-        map.getOverlays().clear();
-        List<GeoPoint> currGeoPoint = new ArrayList<>();
-        myLocation.setMyLocation(location);
-        map.getOverlays().add(myLocation);
-        if(viewModel.getRoutes().getValue() != null){
-            show(viewModel.getRoutes().getValue());
-            setMarker(viewModel.getEndPoint().getValue(),"End point");
+        if (location != null) {
+            map.getOverlays().clear();
+            List<GeoPoint> currGeoPoint = new ArrayList<>();
+            myLocation.setMyLocation(location);
+            map.getOverlays().add(myLocation);
+            if (viewModel.getRoutes().getValue() != null) {
+                show(viewModel.getRoutes().getValue(), context);
+                setMarker(viewModel.getEndPoint().getValue(), "End point");
+            }
+            if (viewModel.getRoute().getValue() == null) {
+                map.getController().animateTo(new GeoPoint(location.getLatitude(), location.getLongitude()));
+            } else if (viewModel.getRoute().getValue().getBtnRouteStateValue().equals("start")) {
+                currGeoPoint.add(new GeoPoint(location.getLatitude(), location.getLongitude()));
+                currGeoPoint.add(viewModel.getEndPoint().getValue());
+                map.zoomToBoundingBox(viewModel.getBoundingBox(currGeoPoint), true, 250);
+            } else if (viewModel.getRoute().getValue().getBtnRouteStateValue().equals("cancel")) {
+                currGeoPoint.add(new GeoPoint(location.getLatitude(), location.getLongitude()));
+                map.zoomToBoundingBox(viewModel.getBoundingBox(currGeoPoint), true, 10, 18.0, 10L);
+            }
+            map.postInvalidate();
         }
-        if(viewModel.getBtnStartDriveState().getValue() == null) {
-            map.getController().animateTo(new GeoPoint(location.getLatitude(), location.getLongitude()));
-        }else if(viewModel.getBtnStartDriveState().getValue().equals("start")){
-            currGeoPoint.add(new GeoPoint(location.getLatitude(), location.getLongitude()));
-            currGeoPoint.add(viewModel.getEndPoint().getValue());
-            map.zoomToBoundingBox(viewModel.getBoundingBox(currGeoPoint),true,250);
-        }else if(viewModel.getBtnStartDriveState().getValue().equals("cancel")){
-            currGeoPoint.add(new GeoPoint(location.getLatitude(), location.getLongitude()));
-            map.zoomToBoundingBox(viewModel.getBoundingBox(currGeoPoint), true, 10, 18.0, 10L);
-        }
-        map.postInvalidate();
-
     }
 }

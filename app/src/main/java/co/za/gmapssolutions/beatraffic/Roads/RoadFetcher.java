@@ -54,7 +54,7 @@ public class RoadFetcher implements Runnable {
 //        Drawable nodeIcon = context.getResources().getDrawable(R.drawable., context.getResources().newTheme());
 //        int d = 0;
 //        double [] distance = new double[road.length];
-        displayRoutes.show(road);
+        displayRoutes.show(road,context);
 //        mapController.setZoom(9.3f);
 //        map.invalidate();
         map.postInvalidate();

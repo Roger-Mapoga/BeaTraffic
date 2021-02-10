@@ -7,36 +7,32 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
-import co.za.gmapssolutions.beatraffic.Roads.DisplayRoutes;
-import org.osmdroid.util.GeoPoint;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class BeatTrafficLocation implements LocationListener,IMyLocationProvider{
-
+public class BeatTrafficLocation implements LocationListener{
     private  final String TAG = BeatTrafficLocation.class.getSimpleName();
-    private Location location ;
     private long mLastGps = 0;
     private final LocationManager locationManager;
     private final Set<String> locationSources = new HashSet<>();
+    private final Context context;
     private final ILocationConsumer iLocationConsumer;
-    public BeatTrafficLocation(Context context,DisplayRoutes displayRoutes){
+    public BeatTrafficLocation(Context context,ILocationConsumer iLocationConsumer){
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        this.context = context;
         locationSources.add(LocationManager.GPS_PROVIDER);
         locationSources.add(LocationManager.NETWORK_PROVIDER);
-        iLocationConsumer = displayRoutes;
+        this.iLocationConsumer = iLocationConsumer;
     }
     @SuppressLint("MissingPermission")
-    @Override
     public void enableLocation(){
         for(String provider : locationManager.getProviders(true)){
-            if(!shouldIgnore(provider,System.currentTimeMillis()))
+//            if(!shouldIgnore(provider,System.currentTimeMillis()))
             {
                 if (locationSources.contains(provider)) {
                     try {
                         locationManager.requestLocationUpdates(provider, 4000, 10, this);
-                        location = new Location(provider);
                     } catch (Throwable e) {
                         Log.e(TAG, "unable to update location from provider " + provider, e);
                     }
@@ -44,18 +40,15 @@ public class BeatTrafficLocation implements LocationListener,IMyLocationProvider
             }
         }
     }
-    @SuppressLint("MissingPermission")
-    @Override
-    public GeoPoint getLastKnownLocation() {
-        location.set(locationManager.getLastKnownLocation(location.getProvider()));
-        return new GeoPoint(location.getLatitude(),location.getLongitude());
-    }
 
     @Override
     public void onLocationChanged(Location location){
         if (shouldIgnore(location.getProvider(), System.currentTimeMillis()))
             return;
-        this.location.set(location);
+//        Intent local = new Intent();
+//        local.setAction("co.za.gmapssolutions.beatraffic.services.location");
+//        local.putExtra("location", location);
+//        context.sendBroadcast(local);
         iLocationConsumer.updateLocation(location);
     }
 
@@ -73,14 +66,13 @@ public class BeatTrafficLocation implements LocationListener,IMyLocationProvider
     public void onProviderDisabled(String provider) {
 
     }
-    protected boolean shouldIgnore(final String pProvider, final long pTime) {
+    private boolean shouldIgnore(final String pProvider, final long pTime) {
         long gpsWaitTime = 20000;
         if (LocationManager.GPS_PROVIDER.equals(pProvider)) {
             mLastGps = pTime;
         } else {
             return pTime < mLastGps + gpsWaitTime;
         }
-
         return false;
     }
 }

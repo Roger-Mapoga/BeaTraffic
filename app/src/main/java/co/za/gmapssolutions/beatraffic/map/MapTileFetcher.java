@@ -29,7 +29,7 @@ public class MapTileFetcher implements Runnable{
     public void run(){
 //      map.setTileSource(tileSource);
 // map.setTileSource(TileSourceFactory.MAPNIK);
-        map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.ALWAYS);
+        map.getZoomController().setVisibility(CustomZoomButtonsController.Visibility.NEVER);
         map.setMultiTouchControls(true);
         mapController.setZoom(20.0);
         map.invalidate();

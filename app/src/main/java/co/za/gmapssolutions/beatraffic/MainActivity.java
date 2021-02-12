@@ -82,6 +82,7 @@ public class MainActivity extends AppCompatActivity
                 public void onReceive(Context context, Intent intent) {
                     String email = intent.getStringExtra("email");
                     String password = intent.getStringExtra("password");
+                    String carType = "car";
                     //thread
                     DefaultExecutorSupplier defaultExecutorSupplier = DefaultExecutorSupplier.getInstance();
                     ThreadPoolExecutor backGroundThreadPoolExecutor = defaultExecutorSupplier.forLightWeightBackgroundTasks();
@@ -96,15 +97,17 @@ public class MainActivity extends AppCompatActivity
                                 JSONObject userDetails = new JSONObject();
                                 userDetails.put("email",email);
                                 userDetails.put("password",password);
+                                userDetails.put("carType",carType);
                                 HttpURLConnection con = loginOrRegister.post(userDetails.toString());
                                 if(con.getResponseCode() == HttpURLConnection.HTTP_OK) {
                                     long Id = Long.parseLong(new BufferedReader(new InputStreamReader(con.getInputStream())).readLine());
                                     preferences.put("userId",String.valueOf(Id));
                                     preferences.put("email",email);
                                     preferences.put("password",password);
+                                    preferences.put("carType",carType);
                                     loginStatus.putExtra("loginSuccess","success");
                                 }else{
-                                    loginStatus.putExtra("loginError",new BufferedReader(new InputStreamReader(con.getInputStream())).readLine());
+                                    loginStatus.putExtra("loginError",new BufferedReader(new InputStreamReader(con.getErrorStream())).readLine());
                                 }
                                 sendBroadcast(loginStatus);
                             } catch (JSONException | IOException e) {
@@ -120,18 +123,19 @@ public class MainActivity extends AppCompatActivity
                 public void onReceive(Context context, Intent intent) {
                     String loginSuccess = intent.getStringExtra("loginSuccess");
                     Log.i(TAG, "onReceive: "+loginSuccess);
-                    assert loginSuccess != null;
-                    if(!loginSuccess.isEmpty() && loginSuccess.equals("success")){
-                        User user = new User(Long.parseLong(preferences.getString("userId")), "car");
-                        authenticationPagerAdapter.clear();
-                        mainFragment = new MainFragment(HOST, user);
-                        authenticationPagerAdapter.addFragment(mainFragment);
-                        viewPager.setAdapter(authenticationPagerAdapter);
+                    if(loginSuccess != null) {
+                        if (!loginSuccess.isEmpty() && loginSuccess.equals("success")) {
+                            User user = new User(Long.parseLong(preferences.getString("userId")), preferences.getString("carType"));
+                            authenticationPagerAdapter.clear();
+                            mainFragment = new MainFragment(HOST, user);
+                            authenticationPagerAdapter.addFragment(mainFragment);
+                            viewPager.setAdapter(authenticationPagerAdapter);
+                        }
                     }
                 }
             },intentFilter1);
         }else{
-            User user = new User(Long.parseLong(preferences.getString("userId")), "car");
+            User user = new User(Long.parseLong(preferences.getString("userId")), preferences.getString("carType"));
             authenticationPagerAdapter.clear();
             mainFragment = new MainFragment(HOST,user);
             authenticationPagerAdapter.addFragment(mainFragment);

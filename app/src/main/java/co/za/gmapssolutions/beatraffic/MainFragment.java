@@ -1,8 +1,7 @@
 package co.za.gmapssolutions.beatraffic;
 
-import android.os.Bundle;
-import android.os.Message;
-import android.os.Parcelable;
+import android.content.Intent;
+import android.os.*;
 import android.view.*;
 import android.widget.ProgressBar;
 import androidx.annotation.NonNull;
@@ -23,8 +22,11 @@ import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.executor.DefaultExecutorSupplier;
 import co.za.gmapssolutions.beatraffic.map.MapTileFetcher;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
+import co.za.gmapssolutions.beatraffic.services.AutoStart;
 import co.za.gmapssolutions.beatraffic.services.MyLocation;
 import co.za.gmapssolutions.beatraffic.services.location.BeatTrafficLocation;
+import co.za.gmapssolutions.beatraffic.services.location.LocationReceiver;
+import co.za.gmapssolutions.beatraffic.services.location.LocationService;
 import co.za.gmapssolutions.beatraffic.utils.SortRoads;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import org.osmdroid.api.IMapController;
@@ -277,6 +279,16 @@ public class MainFragment extends Fragment implements ItemAdapter.ItemClickListe
         };
         viewModel.getRoute().observe(getViewLifecycleOwner(),RouteObserver);
         viewModel.isNewlyCreated = false;
+        AutoStart detectedActivity = new AutoStart();
+        //location service
+        Intent locationIntent = new Intent(getContext(), LocationService.class);
+        LocationReceiver locationReceiver = new LocationReceiver(new Handler(), getActivity(), map, mapController,myLocation);
+        locationIntent.putExtra("locationReceiver", locationReceiver);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            view.getContext().startForegroundService(locationIntent);
+        }else{
+            view.getContext().startService(locationIntent);
+        }
     }
     private void zoomMapToBoundingBox(BoundingBox currLocBb, boolean driving){
         if(driving) {

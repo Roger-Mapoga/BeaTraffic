@@ -2,10 +2,8 @@ package co.za.gmapssolutions.beatraffic.services.location;
 
 import android.annotation.SuppressLint;
 import android.app.*;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.*;
 import android.os.PowerManager.WakeLock;
@@ -17,6 +15,7 @@ import co.za.gmapssolutions.beatraffic.R;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.executor.DefaultExecutorSupplier;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
+import co.za.gmapssolutions.beatraffic.security.SecurePreferences;
 import co.za.gmapssolutions.beatraffic.transition.Constants;
 import co.za.gmapssolutions.beatraffic.transition.DetectActivity;
 import com.google.android.gms.location.ActivityRecognitionClient;
@@ -50,8 +49,6 @@ public class LocationService extends Service {
     RestClient restClient;
     LocationRemoteThread locationRemoteThread;
     ThreadPoolExecutor backGroundThreadPoolExecutor;
-    IMyLocationProvider iMyLocationProvider;
-    BroadcastReceiver broadcastReceiver;
     ExecutorService executorService;
     CountDownLatch latch;
     public class LocalBinder extends Binder {
@@ -77,8 +74,6 @@ public class LocationService extends Service {
         backGroundThreadPoolExecutor = defaultExecutorSupplier.forBackgroundTasks();
         executorService = Executors.newSingleThreadExecutor();
         latch = new CountDownLatch(1);
-//        location = new BeatTrafficLocation(this);
-//        location.enableLocation();
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -92,9 +87,10 @@ public class LocationService extends Service {
               try {
                    URL locUrl = new URL(HOST + ":8080/beatraffic");
                   restClient = new RestClient(locUrl);
-                  SharedPreferences userPref = getSharedPreferences("user",MODE_PRIVATE);
-                  User user = new User(userPref.getLong("id",-1),userPref.getString("type",""));
-                   locationRemoteThread = new LocationRemoteThread(this,user,restClient,latch);
+                  SecurePreferences preferences = new SecurePreferences(this, "user-info",
+                          "YourSecurityKey", true);
+                  User user = new User(Long.parseLong(preferences.getString("userId")),preferences.getString("carType"));
+                  locationRemoteThread = new LocationRemoteThread(this,user,restClient,latch);
                } catch (MalformedURLException e) {
                    e.printStackTrace();
                }

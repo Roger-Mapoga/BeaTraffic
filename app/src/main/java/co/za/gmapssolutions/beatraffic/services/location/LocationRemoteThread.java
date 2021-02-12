@@ -13,16 +13,17 @@ import android.util.Log;
 import co.za.gmapssolutions.beatraffic.domain.BeatrafficLocation;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
+import co.za.gmapssolutions.beatraffic.services.AutoStart;
+import com.google.android.gms.location.DetectedActivity;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import static co.za.gmapssolutions.beatraffic.domain.BeatrafficLocation.locationToJson;
-
-;
 
 public class LocationRemoteThread implements Runnable, LocationListener {
     private final String TAG = LocationRemoteThread.class.getSimpleName();
@@ -32,7 +33,7 @@ public class LocationRemoteThread implements Runnable, LocationListener {
     private final Context context;
     private final CountDownLatch latch;
     private final User user;
-    private int UserActivityType;
+    private int UserActivityType = -1;
     @SuppressLint("MissingPermission")
     public LocationRemoteThread(Context context, User user, RestClient restClient, CountDownLatch latch){
         LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
@@ -44,7 +45,7 @@ public class LocationRemoteThread implements Runnable, LocationListener {
         locationSources.add(LocationManager.GPS_PROVIDER);
         locationSources.add(LocationManager.NETWORK_PROVIDER);
         for(String provider : locationManager.getProviders(true)){
-            if(!shouldIgnore(provider,System.currentTimeMillis()))
+//            if(!shouldIgnore(provider,System.currentTimeMillis()))
             {
                 if (locationSources.contains(provider)) {
                     try {
@@ -60,27 +61,33 @@ public class LocationRemoteThread implements Runnable, LocationListener {
 
     @Override
     public void run() {
+        //detected activity
+        AutoStart detectedActivity = new AutoStart();
         while(latch.getCount() == 1) {
-            IntentFilter filter = new IntentFilter();
-            filter.addAction("co.za.gmapssolutions.beatraffic.services.UserActivityType");
+            IntentFilter filter = new IntentFilter("co.za.gmapssolutions.beatraffic.ACTION_PROCESS_ACTIVITY_TRANSITIONS");
             BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if(intent != null) {
-                        UserActivityType = intent.getIntExtra("UserActivityType", -1);
+                        UserActivityType = intent.getIntExtra("type", -1);
                     }
+                    Log.i(TAG, "onReceive: "+UserActivityType);
                 }
             };
+
             context.registerReceiver(broadcastReceiver,filter);
-//            if(UserActivityType == DetectedActivity.IN_VEHICLE) {// check also confidence
+            if(UserActivityType == DetectedActivity.IN_VEHICLE) {// check also confidence
+
                 try {
                     BeatrafficLocation location = new BeatrafficLocation(user, this.location);
-                    restClient.post(locationToJson(location).toString());
-                    Thread.sleep( 1000);
+                    HttpURLConnection con = restClient.post(locationToJson(location).toString());
+                    if(con.getResponseCode() == HttpURLConnection.HTTP_OK){
+                        Thread.sleep( 1000);
+                    }
                 } catch (IOException | InterruptedException | JSONException e) {
                     e.printStackTrace();
                 }
-//            }
+            }
         }
     }
 

@@ -111,7 +111,7 @@ public class LoginFragment extends Fragment {
                 String loginError = intent.getStringExtra("loginError");
                 if(loginError != null) {
                     if (!loginError.isEmpty())
-                        Toast.makeText(getActivity(), loginError, Toast.LENGTH_LONG).show();
+                        Toast.makeText(getContext(), loginError, Toast.LENGTH_LONG).show();
                 }
             }
         },intentFilter);

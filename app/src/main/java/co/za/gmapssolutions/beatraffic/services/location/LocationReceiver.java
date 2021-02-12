@@ -30,7 +30,7 @@ public class LocationReceiver extends ResultReceiver{
     protected void onReceiveResult(int resultCode, Bundle resultData) {
         int SUCCESS = 1;
         if(SUCCESS == resultCode){
-
+            Log.i(TAG, "onReceiveResult: ");
             IntentFilter filter = new IntentFilter();
             filter.addAction("co.za.gmapssolutions.beatraffic.services.UserActivityType");
             broadcastReceiver = new BroadcastReceiver() {

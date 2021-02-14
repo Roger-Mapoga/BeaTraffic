@@ -1,6 +1,7 @@
 package co.za.gmapssolutions.beatraffic.Roads;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.widget.Toast;
@@ -9,6 +10,9 @@ import org.json.JSONArray;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Polyline;
+
+import java.util.ArrayList;
 
 public class DisplayForecast implements Runnable {
     private static final String TAG = DisplayForecast.class.getSimpleName();
@@ -26,32 +30,34 @@ public class DisplayForecast implements Runnable {
     public void run() {
         Marker nodeMarker = new Marker(map);
         Drawable nodeIcon = context.getResources().getDrawable(R.drawable.marker_default, context.getResources().newTheme());
-//        ArrayList<GeoPoint> trafficPoints = new ArrayList<>();
-//        Polyline trafficOverlay = new Polyline();
-//        trafficOverlay.setColor(0x80FF0000);
-//        trafficOverlay.setWidth(5.0f);
+        ArrayList<GeoPoint> trafficPoints = new ArrayList<>();
+        Polyline trafficOverlay = new Polyline();
+        trafficOverlay.setColor(Color.RED);
+        trafficOverlay.setWidth(5.0f);
         try {
             JSONArray jsonArray = new JSONArray(forecast);
             for(int i =0; i<jsonArray.length();i++){
                 GeoPoint mLocation = new GeoPoint(jsonArray.getJSONObject(i).getDouble("latitude"),
                         jsonArray.getJSONObject(i).getDouble("longitude"));
-//                trafficPoints.add(mLocation);
-//                trafficOverlay.setPoints(trafficPoints);
-//                map.getOverlays().add(trafficOverlay);
-                //trafficPoints.clear();
-                nodeMarker.setPosition(mLocation);
-                nodeMarker.setIcon(nodeIcon);
-                map.getOverlays().add(nodeMarker);
-                Marker marker = new Marker(map);
-                marker.setPosition(mLocation);
-                marker.setIcon(nodeIcon);
-                marker.setTitle("Traffic point: "+mLocation.getLatitude() +" : "+mLocation.getLongitude());
+                trafficPoints.add(mLocation);
+//                trafficPoints.clear();
+                //nodeMarker.setPosition(mLocation);
+//                nodeMarker.setIcon(nodeIcon);
+//                map.getOverlays().add(nodeMarker);
+//                Marker marker = new Marker(map);
+//                marker.setPosition(mLocation);
+//                marker.setIcon(nodeIcon);
+//                marker.setTitle("Traffic point: "+mLocation.getLatitude() +" : "+mLocation.getLongitude());
 //                marker.setDraggable(true);
 //                marker.setOnMarkerDragListener(new OnMarkerDragListenerDrawer(map));
-                map.getOverlays().add(marker);
+//                map.getOverlays().add(marker);
 
                 Log.d(TAG ,"Forecast: "+mLocation.getLatitude() +" : "+mLocation.getLongitude());
             }
+            trafficOverlay.setPoints(trafficPoints);
+
+            map.getOverlays().add(trafficOverlay);
+
 
             map.invalidate();
 

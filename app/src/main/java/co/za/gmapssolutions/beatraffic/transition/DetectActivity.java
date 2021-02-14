@@ -2,7 +2,6 @@ package co.za.gmapssolutions.beatraffic.transition;
 
 import android.app.IntentService;
 import android.content.Intent;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.google.android.gms.location.ActivityRecognitionResult;
 import com.google.android.gms.location.DetectedActivity;
 
@@ -31,6 +30,8 @@ public class DetectActivity extends IntentService {
         Intent intent = new Intent(BROADCAST_DETECTED_ACTIVITY);
         intent.putExtra("type", activity.getType());
         intent.putExtra("confidence", activity.getConfidence());
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+//        Log.i(TAG, "broadcastActivity: "+activity.getType());
+//        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+        sendBroadcast(intent);
     }
 }

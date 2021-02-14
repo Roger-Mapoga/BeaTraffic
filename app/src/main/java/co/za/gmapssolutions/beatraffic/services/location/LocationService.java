@@ -79,11 +79,6 @@ public class LocationService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
            try {
-               ResultReceiver locationReceiver = intent.getParcelableExtra("locationReceiver");
-               Bundle bundle = new Bundle();
-               assert locationReceiver != null;
-               locationReceiver.send(SUCCESS, bundle);
-
               try {
                    URL locUrl = new URL(HOST + ":8080/beatraffic");
                   restClient = new RestClient(locUrl);
@@ -94,9 +89,7 @@ public class LocationService extends Service {
                } catch (MalformedURLException e) {
                    e.printStackTrace();
                }
-////
                startService();
-
            } catch (SecurityException e) {
                Log.v(TAG, Objects.requireNonNull(e.getMessage()));
            }

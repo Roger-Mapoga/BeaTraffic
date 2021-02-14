@@ -39,20 +39,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <receiver android:name=".services.AutoStart"
-                  android:permission="com.google.android.gms.permission.ACTIVITY_RECOGNITION">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="co.za.gmapssolutions.beatraffic.ACTION_PROCESS_ACTIVITY_TRANSITIONS"/>
-            </intent-filter>
-        </receiver>
-
-<!--        <receiver android:name=".services.AutoStart">-->
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.BOOT_COMPLETED" />-->
-<!--            </intent-filter>-->
-<!--        </receiver>-->
     </application>
 
 </manifest>

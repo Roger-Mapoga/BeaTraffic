@@ -1,8 +1,13 @@
 package co.za.gmapssolutions.beatraffic.Roads;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.util.Log;
+import android.widget.Toast;
 import co.za.gmapssolutions.beatraffic.BeaTrafficViewModel;
 import co.za.gmapssolutions.beatraffic.R;
 import co.za.gmapssolutions.beatraffic.services.MyLocation;
@@ -18,12 +23,15 @@ import org.osmdroid.views.overlay.Polyline;
 import java.util.ArrayList;
 import java.util.List;
 
+import static co.za.gmapssolutions.beatraffic.transition.Constants.BROADCAST_DETECTED_ACTIVITY;
+
 public class DisplayRoutes implements ILocationConsumer {
     private final String TAG = DisplayRoutes.class.getSimpleName();
     private final Context context;
     private final MapView map;
     private final MyLocation myLocation;
     private final BeaTrafficViewModel viewModel;
+    private int UserActivityType,UserActivityTypeConfidence;
 
     public DisplayRoutes(Context context, MapView map, MyLocation myLocation, BeaTrafficViewModel viewModel){
         this.context = context;
@@ -33,6 +41,9 @@ public class DisplayRoutes implements ILocationConsumer {
     }
     public void show(Road[] road,Context context){
         for (Road value : road) {
+            Log.i(TAG, "show: "+value.mLegs);
+            Log.i(TAG, "show: "+value.mNodes);
+
             Polyline roadOverlay = RoadManager.buildRoadOverlay(value);
             map.getOverlays().add(roadOverlay);
             for (int i = 0; i < value.mNodes.size(); i++) {
@@ -75,6 +86,20 @@ public class DisplayRoutes implements ILocationConsumer {
     }
     @Override
     public void updateLocation(Location location) {
+        IntentFilter filter = new IntentFilter(BROADCAST_DETECTED_ACTIVITY);
+        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if(intent != null) {
+                    UserActivityType = intent.getIntExtra("type", -1);
+                    UserActivityTypeConfidence = intent.getIntExtra("confidence", -1);
+                    myLocation.setUserActivity(intent.getIntExtra("UserActivityType", -1));
+                    myLocation.setUserConfidence(intent.getIntExtra("UserActivityConfidence", -1));
+                }
+                Toast.makeText(context,"Activity type: " + UserActivityType+" , confidence: " + UserActivityTypeConfidence,Toast.LENGTH_LONG).show();
+            }
+        };
+        context.registerReceiver(broadcastReceiver,filter);
         if (location != null) {
             map.getOverlays().clear();
             List<GeoPoint> currGeoPoint = new ArrayList<>();

@@ -116,6 +116,8 @@ public class mHandler extends Handler{
             backGroundThreadPoolExecutor.submit(kafkaConsumerRestClient);
         }else if (httpsPostResponse == HttpURLConnection.HTTP_NOT_ACCEPTABLE){
             Log.d(TAG,"Consumer Error: " + httpsPostResponse);
+            Toast.makeText(context,"Couldn't load traffic data!!",Toast.LENGTH_LONG).show();
+            progressBar.setVisibility(View.INVISIBLE);
         }
         int trafficResponse = bundle.getInt("traffic-response");
         if(trafficResponse == HttpURLConnection.HTTP_OK){
@@ -124,7 +126,6 @@ public class mHandler extends Handler{
             backGroundThreadPoolExecutor.submit(displayForecast);
             progressBar.setVisibility(View.INVISIBLE);
         }else if (trafficResponse == HttpURLConnection.HTTP_NO_CONTENT){
-            Log.d(TAG, "No content: "+ trafficResponse);
             progressBar.setVisibility(View.INVISIBLE);
             Toast.makeText(context,"No traffic in routes",Toast.LENGTH_LONG).show();
         }

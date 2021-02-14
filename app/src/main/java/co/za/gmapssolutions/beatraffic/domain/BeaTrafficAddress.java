@@ -12,7 +12,10 @@ public class BeaTrafficAddress {
         jsonAddress.put("userId",userId);
         jsonAddress.put("streetName",address.getAddressLine(0));
         jsonAddress.put("postalCode",address.getAddressLine(1));
+        if(address.getLocality() != null)
         jsonAddress.put("city",address.getLocality());
+        else
+        jsonAddress.put("city","not provided");
         jsonAddress.put("country",address.getCountryName());
         jsonAddress.put("provence",address.getAdminArea());
         jsonAddress.put("road",address.getThoroughfare());
@@ -27,7 +30,10 @@ public class BeaTrafficAddress {
         JSONObject jsonAddress = new JSONObject();
         jsonAddress.put("userId",userId);
         jsonAddress.put("postalCode",address.getPostalCode());
-        jsonAddress.put("city",address.getLocality());
+        if(address.getLocality() != null)
+            jsonAddress.put("city",address.getLocality());
+        else
+            jsonAddress.put("city","not provided");
         jsonAddress.put("country",address.getCountryName());
         jsonAddress.put("provence",address.getAdminArea());
         if(address.hasLatitude())

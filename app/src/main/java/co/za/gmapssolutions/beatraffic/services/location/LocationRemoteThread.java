@@ -13,7 +13,6 @@ import android.util.Log;
 import co.za.gmapssolutions.beatraffic.domain.BeatrafficLocation;
 import co.za.gmapssolutions.beatraffic.domain.User;
 import co.za.gmapssolutions.beatraffic.restClient.RestClient;
-import co.za.gmapssolutions.beatraffic.services.AutoStart;
 import com.google.android.gms.location.DetectedActivity;
 import org.json.JSONException;
 
@@ -24,16 +23,19 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 import static co.za.gmapssolutions.beatraffic.domain.BeatrafficLocation.locationToJson;
+import static co.za.gmapssolutions.beatraffic.transition.Constants.BROADCAST_DETECTED_ACTIVITY;
+import static co.za.gmapssolutions.beatraffic.transition.Constants.CONFIDENCE;
 
 public class LocationRemoteThread implements Runnable, LocationListener {
     private final String TAG = LocationRemoteThread.class.getSimpleName();
     private long mLastGps = 0;
     private final RestClient restClient;
-    private Location location;
+    private Location location = null;
     private final Context context;
     private final CountDownLatch latch;
     private final User user;
     private int UserActivityType = -1;
+    private int UserActivityTypeConfidence = -1;
     @SuppressLint("MissingPermission")
     public LocationRemoteThread(Context context, User user, RestClient restClient, CountDownLatch latch){
         LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
@@ -61,34 +63,32 @@ public class LocationRemoteThread implements Runnable, LocationListener {
 
     @Override
     public void run() {
-        //detected activity
-        AutoStart detectedActivity = new AutoStart();
-        while(latch.getCount() == 1) {
-            IntentFilter filter = new IntentFilter("co.za.gmapssolutions.beatraffic.ACTION_PROCESS_ACTIVITY_TRANSITIONS");
-            BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    if(intent != null) {
-                        UserActivityType = intent.getIntExtra("type", -1);
+        IntentFilter filter = new IntentFilter(BROADCAST_DETECTED_ACTIVITY);
+        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if(intent != null) {
+                    UserActivityType = intent.getIntExtra("type", -1);
+                    UserActivityTypeConfidence = intent.getIntExtra("confidence", -1);
+                    Log.i(TAG, "type: "+UserActivityType +" , confidence: " + UserActivityTypeConfidence);
+                    if(UserActivityType == DetectedActivity.IN_VEHICLE && UserActivityTypeConfidence >= CONFIDENCE) {
+                        Log.i(TAG, "Thread is running" + UserActivityType);
+                        try {
+                            BeatrafficLocation l = new BeatrafficLocation(user, location);
+                            HttpURLConnection con = restClient.post(locationToJson(l).toString());
+                            if(con.getResponseCode() == HttpURLConnection.HTTP_OK){
+                                Thread.sleep( 1000);
+                            }
+                        } catch (IOException | InterruptedException | JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }else{
+                        Log.i(TAG, "Thread is running");
                     }
-                    Log.i(TAG, "onReceive: "+UserActivityType);
-                }
-            };
-
-            context.registerReceiver(broadcastReceiver,filter);
-            if(UserActivityType == DetectedActivity.IN_VEHICLE) {// check also confidence
-
-                try {
-                    BeatrafficLocation location = new BeatrafficLocation(user, this.location);
-                    HttpURLConnection con = restClient.post(locationToJson(location).toString());
-                    if(con.getResponseCode() == HttpURLConnection.HTTP_OK){
-                        Thread.sleep( 1000);
-                    }
-                } catch (IOException | InterruptedException | JSONException e) {
-                    e.printStackTrace();
                 }
             }
-        }
+        };
+        context.registerReceiver(broadcastReceiver,filter);
     }
 
     @Override

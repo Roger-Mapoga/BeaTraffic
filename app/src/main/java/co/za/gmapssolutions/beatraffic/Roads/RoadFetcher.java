@@ -20,7 +20,7 @@ public class RoadFetcher implements Runnable {
     private final MapView map;
     private final RoadManager roadManager;
     private final Handler handler;
-    private Road[] road = new Road[10];
+    private Road[] roads = new Road[10];
     private final Bundle bundle = new Bundle();
     private final DisplayRoutes displayRoutes;
     private final IMapController mapController;
@@ -49,12 +49,12 @@ public class RoadFetcher implements Runnable {
 
         Message msg = handler.obtainMessage();
         roadManager.addRequestOption("alternatives=10");
-        road = roadManager.getRoads(routePoints);
+        roads = roadManager.getRoads(routePoints);
 
 //        Drawable nodeIcon = context.getResources().getDrawable(R.drawable., context.getResources().newTheme());
 //        int d = 0;
 //        double [] distance = new double[road.length];
-        displayRoutes.show(road,context);
+        displayRoutes.show(roads,context);
 //        mapController.setZoom(9.3f);
 //        map.invalidate();
         map.postInvalidate();
@@ -63,7 +63,7 @@ public class RoadFetcher implements Runnable {
         handler.sendMessage(msg);
     }
     public Road[] getRoutes() {
-        return road;
+        return roads;
     }
 
 }

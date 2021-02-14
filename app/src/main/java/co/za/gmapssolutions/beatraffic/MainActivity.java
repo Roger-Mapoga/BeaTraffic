@@ -219,8 +219,6 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-//        LocalBroadcastManager.getInstance(this).registerReceiver(detectedActivity,
-//                new IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY));
     }
     @Override
     protected void onDestroy(){

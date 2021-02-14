@@ -21,6 +21,13 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintBottom_toTopOf="@+id/map"/>
+    <ImageView android:id="@+id/directionIcon"
+               android:layout_width="wrap_content"
+               android:layout_height="wrap_content"
+               android:src="@drawable/direction_arrive"
+               app:layout_constraintBottom_toTopOf="parent"
+               app:layout_constraintStart_toStartOf="parent"
+                />
 
     <org.osmdroid.views.MapView android:id="@+id/map"
                                 android:layout_width="match_parent"
